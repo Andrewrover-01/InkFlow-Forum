@@ -1,6 +1,6 @@
 # 墨香论坛 (InkFlow Forum) — 开发计划书
 
-> 当前版本: `0.1.0` | Next.js `15.5.14` | 最后更新: 2026-03-28（Phase 1–3 全部完成）
+> 当前版本: `0.1.0` | Next.js `15.5.14` | 最后更新: 2026-03-28（Phase 1–4 部分完成，Phase 5 规划中）
 
 ---
 
@@ -119,58 +119,116 @@
 
 ---
 
-## 四、Phase 4 — 体验优化（低优先级）
+## 四、Phase 4 — 体验优化（部分完成）
 
-| 任务 | 说明 |
+| 任务 | 状态 | 说明 |
+|---|---|---|
+| `next/image` 替换 `<img>` | ✅ | 所有组件已使用 `Image from "next/image"`，无裸 `<img>` 标签 |
+| README 完善 | ✅ | 506 行，含本地开发、阿里云部署、PM2、Nginx、备份、排障指南 |
+| 回复/评论删除 | ✅ | `DELETE /api/replies/[id]`、`DELETE /api/comments/[id]`；UI 已接入 |
+| 加载骨架屏（部分路由） | ✅ | `/forum`、`/post/[id]`、`/user/[id]`、`/categories/[slug]`、`/admin` 已有 `loading.tsx` |
+| 错误边界（部分路由） | ✅ | `/forum`、`/post/[id]`、`/search`、`/categories`、`/admin` 已有 `error.tsx` |
+| 加载骨架屏（缺失路由） | ⏳ | `/settings`、`/categories`、`/post/create`、`/post/[id]/edit`、`/search` |
+| 错误边界（缺失路由） | ⏳ | `/settings`、`/categories/[slug]`、`/user/[id]`、`/post/create`、`/post/[id]/edit` |
+| 站内通知 | ⏳ | 被回复/被点赞时通知（需新增 Notification 模型 + API + UI） |
+| 图片上传 | ⏳ | 头像上传接入第三方存储（如 Cloudflare R2） |
+| E2E 测试 | ⏳ | 使用 Playwright 覆盖注册/登录/发帖核心流程 |
+
+---
+
+## 五、Phase 5 — 剩余任务详细计划
+
+### 5.1 骨架屏 & 错误边界补全（P0 — 低工作量，高稳定性收益）
+
+**目标**: 补全所有缺失路由的 `loading.tsx` 和 `error.tsx`，保持与现有文件风格一致。
+
+#### 缺失 loading.tsx
+
+| 文件路径 | 说明 |
 |---|---|
-| `next/image` 替换 `<img>` | 解决现有 `no-img-element` 警告，优化 LCP |
-| README 完善 | 环境搭建、数据库初始化、开发/生产部署教程 |
-| 加载骨架屏 | 论坛列表、帖子详情添加 `loading.tsx` |
-| 错误边界 | 各主要路由添加 `error.tsx` |
-| 回复/评论删除 | 作者可删除自己的回复和评论 |
-| 站内通知 | 被回复/被点赞时通知（Notification 模型 + API） |
-| 图片上传 | 头像上传接入第三方存储（如 Cloudflare R2） |
-| E2E 测试 | 使用 Playwright 覆盖注册/登录/发帖核心流程 |
+| `src/app/settings/loading.tsx` | 个人设置页加载态 |
+| `src/app/categories/loading.tsx` | 版块列表页加载态 |
+| `src/app/post/create/loading.tsx` | 发帖页加载态 |
+| `src/app/post/[id]/edit/loading.tsx` | 编辑帖子页加载态 |
+| `src/app/search/loading.tsx` | 搜索结果页加载态 |
+
+#### 缺失 error.tsx
+
+| 文件路径 | 说明 |
+|---|---|
+| `src/app/settings/error.tsx` | 个人设置页错误边界 |
+| `src/app/categories/[slug]/error.tsx` | 版块详情页错误边界 |
+| `src/app/user/[id]/error.tsx` | 用户主页错误边界 |
+| `src/app/post/create/error.tsx` | 发帖页错误边界 |
+| `src/app/post/[id]/edit/error.tsx` | 编辑帖子页错误边界 |
+
+**参考**: 复制 `src/app/forum/loading.tsx` / `src/app/forum/error.tsx` 的实现模式即可。
 
 ---
 
-## 五、文件结构预览（Phase 2–3 新增）
+### 5.2 站内通知系统（P1 — 中工作量）
 
-```
-src/
-├── app/
-│   ├── admin/
-│   │   ├── page.tsx               # 管理后台首页
-│   │   ├── users/page.tsx         # 用户管理
-│   │   ├── posts/page.tsx         # 帖子管理
-│   │   └── categories/page.tsx    # 分类管理
-│   ├── categories/
-│   │   ├── page.tsx               # 分类列表
-│   │   └── [slug]/page.tsx        # 分类帖子列表
-│   ├── post/[id]/
-│   │   └── edit/page.tsx          # 帖子编辑
-│   ├── search/
-│   │   └── page.tsx               # 搜索结果
-│   ├── settings/
-│   │   └── page.tsx               # 个人设置
-│   └── user/
-│       └── [id]/page.tsx          # 用户主页
-│   └── api/
-│       ├── likes/route.ts         # 点赞切换
-│       ├── posts/[id]/route.ts    # 帖子 PATCH/DELETE
-│       ├── search/route.ts        # 全局搜索
-│       └── user/me/route.ts       # 个人资料更新
-├── components/
-│   ├── like-button.tsx            # 点赞按钮（乐观更新）
-│   └── pagination.tsx             # 翻页组件
-├── lib/
-│   └── guard.ts                   # 权限检查工具
-└── middleware.ts                  # 路由级 RBAC 中间件
-```
+**目标**: 用户被回复或被点赞时收到站内通知，Navbar 显示未读数角标。
+
+#### 数据层
+
+| 任务 | 文件 | 说明 |
+|---|---|---|
+| Notification 模型 | `prisma/schema.prisma` | 字段: `id / userId / type(REPLY/LIKE) / fromUserId / postId / replyId / isRead / createdAt` |
+| 数据库迁移 | `prisma/migrations/` | `npx prisma migrate dev --name add_notification` |
+| 触发点 | `src/app/api/replies/route.ts`<br>`src/app/api/likes/route.ts` | 回复/点赞成功后写入 Notification 记录 |
+
+#### API 层
+
+| 路由 | 方法 | 说明 |
+|---|---|---|
+| `src/app/api/notifications/route.ts` | `GET` | 获取当前用户通知列表（分页，默认 20 条） |
+| `src/app/api/notifications/[id]/route.ts` | `PATCH` | 标记单条通知为已读 |
+| `src/app/api/notifications/read-all/route.ts` | `POST` | 批量标记全部为已读 |
+
+#### UI 层
+
+| 任务 | 文件 | 说明 |
+|---|---|---|
+| 通知角标 | `src/components/navbar.tsx` | 轮询或 SWR 获取未读数，显示红点 |
+| 通知列表页 | `src/app/notifications/page.tsx` | 分页展示所有通知，点击跳转目标帖子 |
+| 通知列表组件 | `src/components/notification-item.tsx` | 单条通知展示（类型图标 + 摘要 + 时间 + 已读状态） |
 
 ---
 
-## 六、优先级总览
+### 5.3 图片上传（P2 — 依赖外部服务）
+
+**目标**: 头像支持文件上传，存储至 Cloudflare R2（或其他兼容 S3 的对象存储）。
+
+| 任务 | 文件 | 说明 |
+|---|---|---|
+| 上传 API | `src/app/api/upload/route.ts` | 接收 `multipart/form-data`，校验文件类型/大小，上传至 R2，返回公开 URL |
+| 环境变量 | `.env.example` | 新增 `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET` / `R2_PUBLIC_URL` |
+| 设置页改造 | `src/app/settings/page.tsx` | 添加文件选择器，上传后填入头像 URL 输入框 |
+| next.config | `next.config.mjs` | 添加 R2 公开域名到 `remotePatterns` |
+
+**依赖**: `@aws-sdk/client-s3`（兼容 R2 S3 API）。
+
+---
+
+### 5.4 E2E 测试（P3 — 持续质量保障）
+
+**目标**: 使用 Playwright 覆盖注册/登录/发帖/回复/点赞/管理员后台等核心流程。
+
+| 任务 | 文件 | 说明 |
+|---|---|---|
+| 安装配置 | `playwright.config.ts` | baseURL、浏览器矩阵、test 目录设置 |
+| 用户流程 | `e2e/auth.spec.ts` | 注册 → 登录 → 退出 |
+| 发帖流程 | `e2e/post.spec.ts` | 发帖 → 编辑 → 删除 |
+| 互动流程 | `e2e/interaction.spec.ts` | 回复 → 评论 → 点赞 |
+| 管理员流程 | `e2e/admin.spec.ts` | 登录 ADMIN → 访问后台 → 修改用户角色 |
+| CI 集成 | `.github/workflows/e2e.yml` | PR 触发，使用测试数据库 |
+
+**依赖**: `@playwright/test`。
+
+---
+
+## 六、优先级总览（更新至 Phase 5）
 
 | 优先级 | 功能 | 状态 |
 |---|---|---|
@@ -182,5 +240,72 @@ src/
 | 🟡 P2 | 用户主页 + 个人设置 | ✅ 已完成 |
 | 🟡 P2 | RBAC 权限守卫完善 | ✅ 已完成 |
 | 🟢 P3 | 管理员后台 | ✅ 已完成 |
-| 🟢 P3 | 通知系统 | ⏳ Phase 4 待规划 |
-| ⚪ P4 | 体验优化 / E2E 测试 | ⏳ 持续进行 |
+| 🟢 P3 | `next/image` 替换 / README / 回复评论删除 | ✅ 已完成 |
+| 🟢 P3 | 骨架屏 & 错误边界补全 | ⏳ 待实现（小） |
+| 🟡 P4 | 站内通知系统 | ⏳ 待实现（中） |
+| 🔵 P5 | 图片上传（Cloudflare R2） | ⏳ 待实现（中，需外部服务） |
+| ⚪ P6 | E2E 测试（Playwright） | ⏳ 待实现（持续进行） |
+
+---
+
+## 七、文件结构预览（完整，含 Phase 5 新增）
+
+```
+src/
+├── app/
+│   ├── admin/
+│   │   ├── page.tsx               # 管理后台首页
+│   │   ├── users/page.tsx         # 用户管理
+│   │   ├── posts/page.tsx         # 帖子管理
+│   │   └── categories/page.tsx    # 分类管理
+│   ├── categories/
+│   │   ├── page.tsx               # 分类列表
+│   │   ├── loading.tsx            # ⏳ 待补全
+│   │   └── [slug]/
+│   │       ├── page.tsx           # 分类帖子列表
+│   │       └── error.tsx          # ⏳ 待补全
+│   ├── notifications/
+│   │   └── page.tsx               # ⏳ 站内通知列表页（Phase 5）
+│   ├── post/[id]/
+│   │   └── edit/
+│   │       ├── page.tsx           # 帖子编辑
+│   │       ├── loading.tsx        # ⏳ 待补全
+│   │       └── error.tsx          # ⏳ 待补全
+│   ├── post/create/
+│   │   ├── page.tsx               # 发帖页
+│   │   ├── loading.tsx            # ⏳ 待补全
+│   │   └── error.tsx              # ⏳ 待补全
+│   ├── search/
+│   │   ├── page.tsx               # 搜索结果
+│   │   └── loading.tsx            # ⏳ 待补全
+│   ├── settings/
+│   │   ├── page.tsx               # 个人设置
+│   │   ├── loading.tsx            # ⏳ 待补全
+│   │   └── error.tsx              # ⏳ 待补全
+│   └── user/
+│       └── [id]/
+│           ├── page.tsx           # 用户主页
+│           └── error.tsx          # ⏳ 待补全
+│   └── api/
+│       ├── likes/route.ts         # 点赞切换
+│       ├── notifications/
+│       │   ├── route.ts           # ⏳ GET 通知列表（Phase 5）
+│       │   ├── [id]/route.ts      # ⏳ PATCH 标记已读（Phase 5）
+│       │   └── read-all/route.ts  # ⏳ POST 全部已读（Phase 5）
+│       ├── posts/[id]/route.ts    # 帖子 PATCH/DELETE
+│       ├── search/route.ts        # 全局搜索
+│       ├── upload/route.ts        # ⏳ 文件上传（Phase 5）
+│       └── user/me/route.ts       # 个人资料更新
+├── components/
+│   ├── like-button.tsx            # 点赞按钮（乐观更新）
+│   ├── notification-item.tsx      # ⏳ 通知条目组件（Phase 5）
+│   └── pagination.tsx             # 翻页组件
+├── lib/
+│   └── guard.ts                   # 权限检查工具
+└── middleware.ts                  # 路由级 RBAC 中间件
+e2e/                               # ⏳ Playwright E2E 测试（Phase 5）
+├── auth.spec.ts
+├── post.spec.ts
+├── interaction.spec.ts
+└── admin.spec.ts
+```
