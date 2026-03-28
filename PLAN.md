@@ -131,8 +131,8 @@
 | 加载骨架屏（缺失路由） | ✅ | `/settings`、`/categories`、`/post/create`、`/post/[id]/edit`、`/search` |
 | 错误边界（缺失路由） | ✅ | `/settings`、`/categories/[slug]`、`/user/[id]`、`/post/create`、`/post/[id]/edit` |
 | 站内通知 | ✅ | Notification 模型 + 3 个 API 路由 + Navbar 角标 + `/notifications` 页面 + `notification-item.tsx` |
-| 图片上传 | ⏳ | 头像上传接入第三方存储（如 Cloudflare R2） |
-| E2E 测试 | ⏳ | 使用 Playwright 覆盖注册/登录/发帖核心流程 |
+| 图片上传 | ✅ | 头像上传接入第三方存储（如 Cloudflare R2） |
+| E2E 测试 | ✅ | 使用 Playwright 覆盖注册/登录/发帖核心流程 |
 
 ---
 
@@ -194,33 +194,33 @@
 
 ---
 
-### 5.3 图片上传（P2 — 依赖外部服务）
+### 5.3 图片上传（✅ 已完成）
 
 **目标**: 头像支持文件上传，存储至 Cloudflare R2（或其他兼容 S3 的对象存储）。
 
 | 任务 | 文件 | 说明 |
 |---|---|---|
-| 上传 API | `src/app/api/upload/route.ts` | 接收 `multipart/form-data`，校验文件类型/大小，上传至 R2，返回公开 URL |
-| 环境变量 | `.env.example` | 新增 `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET` / `R2_PUBLIC_URL` |
-| 设置页改造 | `src/app/settings/page.tsx` | 添加文件选择器，上传后填入头像 URL 输入框 |
-| next.config | `next.config.mjs` | 添加 R2 公开域名到 `remotePatterns` |
+| 上传 API | `src/app/api/upload/route.ts` | ✅ 接收 `multipart/form-data`，校验文件类型/大小，上传至 R2，返回公开 URL |
+| 环境变量 | `.env.example` | ✅ 新增 `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET` / `R2_PUBLIC_URL` |
+| 设置页改造 | `src/app/settings/page.tsx` | ✅ 添加文件选择器，上传后填入头像 URL 输入框 |
+| next.config | `next.config.mjs` | ✅ 添加 R2 公开域名到 `remotePatterns` |
 
 **依赖**: `@aws-sdk/client-s3`（兼容 R2 S3 API）。
 
 ---
 
-### 5.4 E2E 测试（P3 — 持续质量保障）
+### 5.4 E2E 测试（✅ 已完成）
 
 **目标**: 使用 Playwright 覆盖注册/登录/发帖/回复/点赞/管理员后台等核心流程。
 
 | 任务 | 文件 | 说明 |
 |---|---|---|
-| 安装配置 | `playwright.config.ts` | baseURL、浏览器矩阵、test 目录设置 |
-| 用户流程 | `e2e/auth.spec.ts` | 注册 → 登录 → 退出 |
-| 发帖流程 | `e2e/post.spec.ts` | 发帖 → 编辑 → 删除 |
-| 互动流程 | `e2e/interaction.spec.ts` | 回复 → 评论 → 点赞 |
-| 管理员流程 | `e2e/admin.spec.ts` | 登录 ADMIN → 访问后台 → 修改用户角色 |
-| CI 集成 | `.github/workflows/e2e.yml` | PR 触发，使用测试数据库 |
+| 安装配置 | `playwright.config.ts` | ✅ baseURL、浏览器矩阵、test 目录设置 |
+| 用户流程 | `e2e/auth.spec.ts` | ✅ 注册 → 登录 → 退出 |
+| 发帖流程 | `e2e/post.spec.ts` | ✅ 发帖 → 编辑 → 删除 |
+| 互动流程 | `e2e/interaction.spec.ts` | ✅ 回复 → 评论 → 点赞 |
+| 管理员流程 | `e2e/admin.spec.ts` | ✅ 登录 ADMIN → 访问后台 → 修改用户角色 |
+| CI 集成 | `.github/workflows/e2e.yml` | ✅ PR 触发，使用测试数据库 |
 
 **依赖**: `@playwright/test`。
 
@@ -241,8 +241,8 @@
 | 🟢 P3 | `next/image` 替换 / README / 回复评论删除 | ✅ 已完成 |
 | 🟢 P3 | 骨架屏 & 错误边界补全 | ✅ 已完成 |
 | 🟡 P4 | 站内通知系统 | ✅ 已完成 |
-| 🔵 P5 | 图片上传（Cloudflare R2） | ⏳ 待实现（中，需外部服务） |
-| ⚪ P6 | E2E 测试（Playwright） | ⏳ 待实现（持续进行） |
+| 🔵 P5 | 图片上传（Cloudflare R2） | ✅ 已完成 |
+| ⚪ P6 | E2E 测试（Playwright） | ✅ 已完成 |
 
 ---
 
@@ -292,7 +292,7 @@ src/
 │       │   └── read-all/route.ts  # ✅ POST 全部已读
 │       ├── posts/[id]/route.ts    # 帖子 PATCH/DELETE
 │       ├── search/route.ts        # 全局搜索
-│       ├── upload/route.ts        # ⏳ 文件上传（Phase 5）
+│       ├── upload/route.ts        # ✅ 文件上传（Phase 5）
 │       └── user/me/route.ts       # 个人资料更新
 ├── components/
 │   ├── like-button.tsx            # 点赞按钮（乐观更新）
@@ -301,7 +301,7 @@ src/
 ├── lib/
 │   └── guard.ts                   # 权限检查工具
 └── middleware.ts                  # 路由级 RBAC 中间件
-e2e/                               # ⏳ Playwright E2E 测试（Phase 5）
+e2e/                               # ✅ Playwright E2E 测试（Phase 5）
 ├── auth.spec.ts
 ├── post.spec.ts
 ├── interaction.spec.ts
