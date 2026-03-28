@@ -59,15 +59,23 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Wait for Postgres to be ready
+        run: |
+          for i in $(seq 1 30); do
+            pg_isready -h localhost -p 5432 -U postgres && break
+            echo "Waiting for postgres... ($i)"
+            sleep 2
+          done
+
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Push database schema
-        run: npx prisma db push --force-reset
+      - name: Run database migrations
+        run: npx prisma migrate deploy
 
       - name: Seed database
-        run: npm run seed
-        continue-on-error: true  # seed may fail if no test data; tests self-register
+        run: npx prisma db seed
+        continue-on-error: true  # seed may fail if data already exists; tests self-register
 
       - name: Build Next.js app
         run: npm run build
@@ -81,7 +89,7 @@ jobs:
           PORT: 3000
 
       - name: Wait for server to be ready
-        run: npx wait-on http://localhost:3000 --timeout 30000
+        run: npx wait-on http://localhost:3000 --timeout 60000
 
       - name: Run Playwright E2E tests
         run: npx playwright test
