@@ -52,7 +52,7 @@ export default function LoginPage() {
               type="email"
               required
               className="forum-input"
-              placeholder="your@email.com"
+              placeholder="邮箱 email@example.com"
             />
           </div>
 
@@ -65,7 +65,7 @@ export default function LoginPage() {
               type="password"
               required
               className="forum-input"
-              placeholder="••••••••"
+              placeholder="密码"
             />
           </div>
 

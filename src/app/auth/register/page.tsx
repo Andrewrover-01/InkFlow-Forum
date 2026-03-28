@@ -69,7 +69,7 @@ export default function RegisterPage() {
               minLength={2}
               maxLength={20}
               className="forum-input"
-              placeholder="请输入笔名（2-20字）"
+              placeholder="你的昵称"
             />
           </div>
 
@@ -82,7 +82,7 @@ export default function RegisterPage() {
               type="email"
               required
               className="forum-input"
-              placeholder="your@email.com"
+              placeholder="email@example.com"
             />
           </div>
 
