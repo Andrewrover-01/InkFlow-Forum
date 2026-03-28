@@ -29,6 +29,11 @@ enum PostStatus {
   LOCKED
 }
 
+enum NotificationType {
+  REPLY
+  LIKE
+}
+
 // ================================
 // User Model
 // ================================
@@ -54,6 +59,10 @@ model User {
   replies  Reply[]
   comments Comment[]
   likes    Like[]
+
+  // Notification relations
+  notifications     Notification[] @relation("notifications")
+  sentNotifications Notification[] @relation("sentNotifications")
 
   @@index([email])
   @@map("users")
@@ -153,6 +162,7 @@ model Post {
   replies  Reply[]
   tags     PostTag[]
   likes    Like[]
+  notifications Notification[]
 
   @@index([authorId])
   @@index([categoryId])
@@ -175,6 +185,7 @@ model Reply {
   author   User      @relation(fields: [authorId], references: [id])
   comments Comment[]
   likes    Like[]
+  notifications Notification[]
 
   @@index([postId])
   @@index([floor])
@@ -221,4 +232,25 @@ model Like {
   @@unique([userId, replyId])
   @@unique([userId, commentId])
   @@map("likes")
+}
+
+// In-app notifications
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String           // recipient
+  type       NotificationType
+  fromUserId String?          // who triggered the notification
+  postId     String?          // related post (for context / navigation)
+  replyId    String?          // related reply (for REPLY type)
+  isRead     Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+
+  user     User   @relation("notifications", fields: [userId], references: [id], onDelete: Cascade)
+  fromUser User?  @relation("sentNotifications", fields: [fromUserId], references: [id], onDelete: SetNull)
+  post     Post?  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reply    Reply? @relation(fields: [replyId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notifications")
 }

@@ -48,6 +48,23 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Notify post author (skip if author is replying to their own post)
+    if (post.authorId !== session.user.id) {
+      prisma.notification
+        .create({
+          data: {
+            userId: post.authorId,
+            type: "REPLY",
+            fromUserId: session.user.id,
+            postId: post.id,
+            replyId: reply.id,
+          },
+        })
+        .catch(() => {
+          // Notification failure should not block the reply response
+        });
+    }
+
     return NextResponse.json(reply, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {

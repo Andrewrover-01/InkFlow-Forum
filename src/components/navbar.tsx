@@ -3,12 +3,37 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
-import { PenLine, BookOpen, Search, User, LogOut, Settings, ChevronDown, LayoutDashboard } from "lucide-react";
-import { useState } from "react";
+import { PenLine, BookOpen, Search, User, LogOut, Settings, ChevronDown, LayoutDashboard, Bell } from "lucide-react";
+import { useState, useEffect } from "react";
 
 export function Navbar() {
   const { data: session } = useSession();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Poll for unread notifications every 60 s when logged in
+  useEffect(() => {
+    if (!session?.user?.id) {
+      setUnreadCount(0);
+      return;
+    }
+
+    async function fetchUnread() {
+      try {
+        const res = await fetch("/api/notifications?page=1");
+        if (res.ok) {
+          const data = await res.json();
+          setUnreadCount(data.unreadCount ?? 0);
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    fetchUnread();
+    const timer = setInterval(fetchUnread, 60_000);
+    return () => clearInterval(timer);
+  }, [session?.user?.id]);
 
   return (
     <header className="border-b border-parchment-400 bg-parchment-100/80 backdrop-blur-sm sticky top-0 z-50">
@@ -56,6 +81,20 @@ export function Navbar() {
                   <span>发帖</span>
                 </Link>
 
+                {/* Notification bell */}
+                <Link
+                  href="/notifications"
+                  className="relative text-ink-500 hover:text-cinnabar-600 transition-colors p-1"
+                  aria-label="通知"
+                >
+                  <Bell className="w-4 h-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-cinnabar-500 text-white text-[10px] font-sans font-medium leading-none">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                </Link>
+
                 <div className="relative">
                   <button
                     onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -91,6 +130,19 @@ export function Navbar() {
                       >
                         <User className="w-3.5 h-3.5" />
                         个人主页
+                      </Link>
+                      <Link
+                        href="/notifications"
+                        className="flex items-center gap-2 px-3 py-2 text-sm font-sans text-ink-700 hover:bg-parchment-100 transition-colors"
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <Bell className="w-3.5 h-3.5" />
+                        站内通知
+                        {unreadCount > 0 && (
+                          <span className="ml-auto inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-cinnabar-500 text-white text-[10px] font-sans font-medium leading-none">
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                          </span>
+                        )}
                       </Link>
                       <Link
                         href="/settings"

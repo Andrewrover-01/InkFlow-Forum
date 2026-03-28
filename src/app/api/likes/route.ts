@@ -49,6 +49,43 @@ export async function POST(req: NextRequest) {
           commentId: commentId ?? null,
         },
       });
+
+      // Notify the owner of the liked content (skip self-likes)
+      try {
+        let targetOwnerId: string | null = null;
+        let notifPostId: string | null = postId ?? null;
+        let notifReplyId: string | null = replyId ?? null;
+
+        if (postId) {
+          const post = await prisma.post.findUnique({
+            where: { id: postId },
+            select: { authorId: true },
+          });
+          targetOwnerId = post?.authorId ?? null;
+        } else if (replyId) {
+          const reply = await prisma.reply.findUnique({
+            where: { id: replyId },
+            select: { authorId: true, postId: true },
+          });
+          targetOwnerId = reply?.authorId ?? null;
+          notifPostId = reply?.postId ?? null;
+        }
+
+        if (targetOwnerId && targetOwnerId !== userId) {
+          await prisma.notification.create({
+            data: {
+              userId: targetOwnerId,
+              type: "LIKE",
+              fromUserId: userId,
+              postId: notifPostId,
+              replyId: notifReplyId,
+            },
+          });
+        }
+      } catch {
+        // Notification failure should not block the like response
+      }
+
       return NextResponse.json({ liked: true });
     }
   } catch (error) {

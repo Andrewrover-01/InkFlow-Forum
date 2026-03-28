@@ -128,9 +128,9 @@
 | 回复/评论删除 | ✅ | `DELETE /api/replies/[id]`、`DELETE /api/comments/[id]`；UI 已接入 |
 | 加载骨架屏（部分路由） | ✅ | `/forum`、`/post/[id]`、`/user/[id]`、`/categories/[slug]`、`/admin` 已有 `loading.tsx` |
 | 错误边界（部分路由） | ✅ | `/forum`、`/post/[id]`、`/search`、`/categories`、`/admin` 已有 `error.tsx` |
-| 加载骨架屏（缺失路由） | ⏳ | `/settings`、`/categories`、`/post/create`、`/post/[id]/edit`、`/search` |
-| 错误边界（缺失路由） | ⏳ | `/settings`、`/categories/[slug]`、`/user/[id]`、`/post/create`、`/post/[id]/edit` |
-| 站内通知 | ⏳ | 被回复/被点赞时通知（需新增 Notification 模型 + API + UI） |
+| 加载骨架屏（缺失路由） | ✅ | `/settings`、`/categories`、`/post/create`、`/post/[id]/edit`、`/search` |
+| 错误边界（缺失路由） | ✅ | `/settings`、`/categories/[slug]`、`/user/[id]`、`/post/create`、`/post/[id]/edit` |
+| 站内通知 | ✅ | Notification 模型 + 3 个 API 路由 + Navbar 角标 + `/notifications` 页面 + `notification-item.tsx` |
 | 图片上传 | ⏳ | 头像上传接入第三方存储（如 Cloudflare R2） |
 | E2E 测试 | ⏳ | 使用 Playwright 覆盖注册/登录/发帖核心流程 |
 
@@ -138,35 +138,33 @@
 
 ## 五、Phase 5 — 剩余任务详细计划
 
-### 5.1 骨架屏 & 错误边界补全（P0 — 低工作量，高稳定性收益）
+### 5.1 骨架屏 & 错误边界补全（✅ 已完成）
 
 **目标**: 补全所有缺失路由的 `loading.tsx` 和 `error.tsx`，保持与现有文件风格一致。
 
-#### 缺失 loading.tsx
+#### 缺失 loading.tsx（已全部补全）
 
 | 文件路径 | 说明 |
 |---|---|
-| `src/app/settings/loading.tsx` | 个人设置页加载态 |
-| `src/app/categories/loading.tsx` | 版块列表页加载态 |
-| `src/app/post/create/loading.tsx` | 发帖页加载态 |
-| `src/app/post/[id]/edit/loading.tsx` | 编辑帖子页加载态 |
-| `src/app/search/loading.tsx` | 搜索结果页加载态 |
+| `src/app/settings/loading.tsx` | ✅ 个人设置页加载态 |
+| `src/app/categories/loading.tsx` | ✅ 版块列表页加载态 |
+| `src/app/post/create/loading.tsx` | ✅ 发帖页加载态 |
+| `src/app/post/[id]/edit/loading.tsx` | ✅ 编辑帖子页加载态 |
+| `src/app/search/loading.tsx` | ✅ 搜索结果页加载态 |
 
-#### 缺失 error.tsx
+#### 缺失 error.tsx（已全部补全）
 
 | 文件路径 | 说明 |
 |---|---|
-| `src/app/settings/error.tsx` | 个人设置页错误边界 |
-| `src/app/categories/[slug]/error.tsx` | 版块详情页错误边界 |
-| `src/app/user/[id]/error.tsx` | 用户主页错误边界 |
-| `src/app/post/create/error.tsx` | 发帖页错误边界 |
-| `src/app/post/[id]/edit/error.tsx` | 编辑帖子页错误边界 |
-
-**参考**: 复制 `src/app/forum/loading.tsx` / `src/app/forum/error.tsx` 的实现模式即可。
+| `src/app/settings/error.tsx` | ✅ 个人设置页错误边界 |
+| `src/app/categories/[slug]/error.tsx` | ✅ 版块详情页错误边界 |
+| `src/app/user/[id]/error.tsx` | ✅ 用户主页错误边界 |
+| `src/app/post/create/error.tsx` | ✅ 发帖页错误边界 |
+| `src/app/post/[id]/edit/error.tsx` | ✅ 编辑帖子页错误边界 |
 
 ---
 
-### 5.2 站内通知系统（P1 — 中工作量）
+### 5.2 站内通知系统（✅ 已完成）
 
 **目标**: 用户被回复或被点赞时收到站内通知，Navbar 显示未读数角标。
 
@@ -174,25 +172,25 @@
 
 | 任务 | 文件 | 说明 |
 |---|---|---|
-| Notification 模型 | `prisma/schema.prisma` | 字段: `id / userId / type(REPLY/LIKE) / fromUserId / postId / replyId / isRead / createdAt` |
-| 数据库迁移 | `prisma/migrations/` | `npx prisma migrate dev --name add_notification` |
-| 触发点 | `src/app/api/replies/route.ts`<br>`src/app/api/likes/route.ts` | 回复/点赞成功后写入 Notification 记录 |
+| Notification 模型 | `prisma/schema.prisma` | ✅ 字段: `id / userId / type(REPLY/LIKE) / fromUserId / postId / replyId / isRead / createdAt` |
+| 数据库迁移 | `prisma/migrations/` | ⚠️ 需在有数据库的环境执行 `npx prisma migrate dev --name add_notification` |
+| 触发点 | `src/app/api/replies/route.ts`<br>`src/app/api/likes/route.ts` | ✅ 回复/点赞成功后写入 Notification 记录 |
 
 #### API 层
 
 | 路由 | 方法 | 说明 |
 |---|---|---|
-| `src/app/api/notifications/route.ts` | `GET` | 获取当前用户通知列表（分页，默认 20 条） |
-| `src/app/api/notifications/[id]/route.ts` | `PATCH` | 标记单条通知为已读 |
-| `src/app/api/notifications/read-all/route.ts` | `POST` | 批量标记全部为已读 |
+| `src/app/api/notifications/route.ts` | `GET` | ✅ 获取当前用户通知列表（分页，默认 20 条） |
+| `src/app/api/notifications/[id]/route.ts` | `PATCH` | ✅ 标记单条通知为已读 |
+| `src/app/api/notifications/read-all/route.ts` | `POST` | ✅ 批量标记全部为已读 |
 
 #### UI 层
 
 | 任务 | 文件 | 说明 |
 |---|---|---|
-| 通知角标 | `src/components/navbar.tsx` | 轮询或 SWR 获取未读数，显示红点 |
-| 通知列表页 | `src/app/notifications/page.tsx` | 分页展示所有通知，点击跳转目标帖子 |
-| 通知列表组件 | `src/components/notification-item.tsx` | 单条通知展示（类型图标 + 摘要 + 时间 + 已读状态） |
+| 通知角标 | `src/components/navbar.tsx` | ✅ 每 60s 轮询未读数，显示红点 |
+| 通知列表页 | `src/app/notifications/page.tsx` | ✅ 分页展示所有通知，点击跳转目标帖子 |
+| 通知列表组件 | `src/components/notification-item.tsx` | ✅ 单条通知展示（类型图标 + 摘要 + 时间 + 已读状态） |
 
 ---
 
@@ -241,8 +239,8 @@
 | 🟡 P2 | RBAC 权限守卫完善 | ✅ 已完成 |
 | 🟢 P3 | 管理员后台 | ✅ 已完成 |
 | 🟢 P3 | `next/image` 替换 / README / 回复评论删除 | ✅ 已完成 |
-| 🟢 P3 | 骨架屏 & 错误边界补全 | ⏳ 待实现（小） |
-| 🟡 P4 | 站内通知系统 | ⏳ 待实现（中） |
+| 🟢 P3 | 骨架屏 & 错误边界补全 | ✅ 已完成 |
+| 🟡 P4 | 站内通知系统 | ✅ 已完成 |
 | 🔵 P5 | 图片上传（Cloudflare R2） | ⏳ 待实现（中，需外部服务） |
 | ⚪ P6 | E2E 测试（Playwright） | ⏳ 待实现（持续进行） |
 
@@ -260,45 +258,45 @@ src/
 │   │   └── categories/page.tsx    # 分类管理
 │   ├── categories/
 │   │   ├── page.tsx               # 分类列表
-│   │   ├── loading.tsx            # ⏳ 待补全
+│   │   ├── loading.tsx            # ✅ 已补全
 │   │   └── [slug]/
 │   │       ├── page.tsx           # 分类帖子列表
-│   │       └── error.tsx          # ⏳ 待补全
+│   │       └── error.tsx          # ✅ 已补全
 │   ├── notifications/
-│   │   └── page.tsx               # ⏳ 站内通知列表页（Phase 5）
+│   │   └── page.tsx               # ✅ 站内通知列表页
 │   ├── post/[id]/
 │   │   └── edit/
 │   │       ├── page.tsx           # 帖子编辑
-│   │       ├── loading.tsx        # ⏳ 待补全
-│   │       └── error.tsx          # ⏳ 待补全
+│   │       ├── loading.tsx        # ✅ 已补全
+│   │       └── error.tsx          # ✅ 已补全
 │   ├── post/create/
 │   │   ├── page.tsx               # 发帖页
-│   │   ├── loading.tsx            # ⏳ 待补全
-│   │   └── error.tsx              # ⏳ 待补全
+│   │   ├── loading.tsx            # ✅ 已补全
+│   │   └── error.tsx              # ✅ 已补全
 │   ├── search/
 │   │   ├── page.tsx               # 搜索结果
-│   │   └── loading.tsx            # ⏳ 待补全
+│   │   └── loading.tsx            # ✅ 已补全
 │   ├── settings/
 │   │   ├── page.tsx               # 个人设置
-│   │   ├── loading.tsx            # ⏳ 待补全
-│   │   └── error.tsx              # ⏳ 待补全
+│   │   ├── loading.tsx            # ✅ 已补全
+│   │   └── error.tsx              # ✅ 已补全
 │   └── user/
 │       └── [id]/
 │           ├── page.tsx           # 用户主页
-│           └── error.tsx          # ⏳ 待补全
+│           └── error.tsx          # ✅ 已补全
 │   └── api/
 │       ├── likes/route.ts         # 点赞切换
 │       ├── notifications/
-│       │   ├── route.ts           # ⏳ GET 通知列表（Phase 5）
-│       │   ├── [id]/route.ts      # ⏳ PATCH 标记已读（Phase 5）
-│       │   └── read-all/route.ts  # ⏳ POST 全部已读（Phase 5）
+│       │   ├── route.ts           # ✅ GET 通知列表
+│       │   ├── [id]/route.ts      # ✅ PATCH 标记已读
+│       │   └── read-all/route.ts  # ✅ POST 全部已读
 │       ├── posts/[id]/route.ts    # 帖子 PATCH/DELETE
 │       ├── search/route.ts        # 全局搜索
 │       ├── upload/route.ts        # ⏳ 文件上传（Phase 5）
 │       └── user/me/route.ts       # 个人资料更新
 ├── components/
 │   ├── like-button.tsx            # 点赞按钮（乐观更新）
-│   ├── notification-item.tsx      # ⏳ 通知条目组件（Phase 5）
+│   ├── notification-item.tsx      # ✅ 通知条目组件
 │   └── pagination.tsx             # 翻页组件
 ├── lib/
 │   └── guard.ts                   # 权限检查工具
