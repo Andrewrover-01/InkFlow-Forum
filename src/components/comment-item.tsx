@@ -5,8 +5,23 @@ import { formatRelativeTime } from "@/lib/utils";
 import { User, Reply } from "lucide-react";
 import { CommentForm } from "./comment-form";
 
+interface CommentAuthor {
+  id: string;
+  name: string | null;
+  image: string | null;
+}
+
+interface CommentData {
+  id: string;
+  content: string;
+  createdAt: Date | string;
+  replyId: string;
+  author: CommentAuthor;
+  children?: CommentData[];
+}
+
 interface CommentItemProps {
-  comment: any;
+  comment: CommentData;
   currentUserId?: string;
   depth?: number;
 }
@@ -23,7 +38,7 @@ export function CommentItem({ comment, currentUserId, depth = 0 }: CommentItemPr
             {comment.author.image ? (
               <img
                 src={comment.author.image}
-                alt={comment.author.name}
+                alt={comment.author.name ?? ""}
                 className="w-full h-full rounded-full object-cover"
               />
             ) : (
@@ -67,7 +82,7 @@ export function CommentItem({ comment, currentUserId, depth = 0 }: CommentItemPr
         {/* Nested children */}
         {comment.children && comment.children.length > 0 && (
           <div className="mt-1 ml-8 space-y-1">
-            {comment.children.map((child: any) => (
+            {comment.children.map((child: CommentData) => (
               <CommentItem
                 key={child.id}
                 comment={child}

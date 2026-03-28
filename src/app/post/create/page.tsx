@@ -12,7 +12,7 @@ interface Category {
 }
 
 export default function CreatePostPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);

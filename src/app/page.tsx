@@ -77,7 +77,7 @@ export default function Home() {
       {/* Forum entrance CTA */}
       <section className="card p-6 text-center bg-gradient-to-br from-parchment-50 to-parchment-100">
         <p className="font-serif text-ink-600 text-base mb-4">
-          "读万卷书，行万里路" — 欢迎加入墨香论坛
+          &ldquo;读万卷书，行万里路&rdquo; — 欢迎加入墨香论坛
         </p>
         <Link href="/forum" className="btn-primary inline-flex items-center gap-2">
           <BookOpen className="w-4 h-4" />

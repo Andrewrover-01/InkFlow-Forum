@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as any,
+  adapter: PrismaAdapter(prisma) as NextAuthOptions["adapter"],
   session: {
     strategy: "jwt",
   },
@@ -55,7 +55,7 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = (user as any).role;
+        token.role = (user as { role?: UserRole }).role ?? "MEMBER" as UserRole;
         token.id = user.id;
       }
       return token;

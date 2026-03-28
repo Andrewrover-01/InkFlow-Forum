@@ -6,8 +6,33 @@ import { Heart, MessageSquare, User } from "lucide-react";
 import { CommentForm } from "./comment-form";
 import { CommentItem } from "./comment-item";
 
+interface ReplyAuthor {
+  id: string;
+  name: string | null;
+  image: string | null;
+}
+
+interface CommentData {
+  id: string;
+  content: string;
+  createdAt: Date | string;
+  replyId: string;
+  author: ReplyAuthor;
+  children?: CommentData[];
+}
+
+interface ReplyData {
+  id: string;
+  content: string;
+  floor: number;
+  createdAt: Date | string;
+  author: ReplyAuthor;
+  comments?: CommentData[];
+  _count: { likes: number; comments: number };
+}
+
 interface ReplyItemProps {
-  reply: any;
+  reply: ReplyData;
   currentUserId?: string;
 }
 
@@ -22,7 +47,7 @@ export function ReplyItem({ reply, currentUserId }: ReplyItemProps) {
           {reply.author.image ? (
             <img
               src={reply.author.image}
-              alt={reply.author.name}
+              alt={reply.author.name ?? ""}
               className="w-full h-full rounded-full object-cover"
             />
           ) : (
@@ -67,7 +92,7 @@ export function ReplyItem({ reply, currentUserId }: ReplyItemProps) {
       {/* Comments */}
       {reply.comments && reply.comments.length > 0 && (
         <div className="mt-3 pl-3 border-l-2 border-parchment-300 space-y-2">
-          {reply.comments.map((comment: any) => (
+          {reply.comments.map((comment: CommentData) => (
             <CommentItem
               key={comment.id}
               comment={comment}
