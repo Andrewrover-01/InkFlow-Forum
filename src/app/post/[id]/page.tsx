@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatRelativeTime } from "@/lib/utils";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { Eye, Heart, MessageSquare, User, Pin, Lock, Tag } from "lucide-react";
+import { Eye, Heart, MessageSquare, User, Pin, Lock, Tag, PenLine } from "lucide-react";
 import { ReplyForm } from "@/components/reply-form";
 import { ReplyItem } from "@/components/reply-item";
+import { DeletePostButton } from "@/components/delete-post-button";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +77,11 @@ export default async function PostPage({ params }: PostPageProps) {
         .map((l) => l.replyId)
         .filter((rid): rid is string => rid !== null)
     : [];
+
+  const canEdit =
+    session?.user?.id === post.author.id ||
+    session?.user?.role === "ADMIN" ||
+    session?.user?.role === "MODERATOR";
 
   return (
     <div className="space-y-4">
@@ -149,6 +156,19 @@ export default async function PostPage({ params }: PostPageProps) {
             <span className="flex items-center gap-1">
               <MessageSquare className="w-3.5 h-3.5" /> {post._count.replies}楼
             </span>
+            {canEdit && (
+              <>
+                <span className="text-parchment-400">|</span>
+                <Link
+                  href={`/post/${post.id}/edit`}
+                  className="flex items-center gap-1 text-ink-400 hover:text-cinnabar-600 transition-colors"
+                >
+                  <PenLine className="w-3.5 h-3.5" />
+                  编辑
+                </Link>
+                <DeletePostButton postId={post.id} />
+              </>
+            )}
           </div>
         </div>
 
