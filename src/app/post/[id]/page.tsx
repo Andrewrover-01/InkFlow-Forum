@@ -10,7 +10,7 @@ import { ReplyItem } from "@/components/reply-item";
 export const dynamic = "force-dynamic";
 
 interface PostPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 async function getPost(id: string) {
@@ -45,9 +45,10 @@ async function getPost(id: string) {
 }
 
 export default async function PostPage({ params }: PostPageProps) {
+  const { id } = await params;
   const [session, post] = await Promise.all([
     getServerSession(authOptions),
-    getPost(params.id),
+    getPost(id),
   ]);
 
   if (!post) notFound();
