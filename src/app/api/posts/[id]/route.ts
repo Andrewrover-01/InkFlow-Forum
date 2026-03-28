@@ -10,6 +10,9 @@ const updatePostSchema = z.object({
   summary: z.string().max(200).optional(),
   categoryId: z.string().min(1).optional(),
   tags: z.array(z.string()).optional(),
+  // Moderator/Admin only
+  isPinned: z.boolean().optional(),
+  isLocked: z.boolean().optional(),
 });
 
 interface RouteContext {
@@ -61,7 +64,13 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
     }
 
     const body = await req.json();
-    const { title, content, summary, categoryId, tags } = updatePostSchema.parse(body);
+    const { title, content, summary, categoryId, tags, isPinned, isLocked } = updatePostSchema.parse(body);
+
+    // isPinned / isLocked require MODERATOR or ADMIN
+    const isModerator = session.user.role === "ADMIN" || session.user.role === "MODERATOR";
+    if ((isPinned !== undefined || isLocked !== undefined) && !isModerator) {
+      return NextResponse.json({ error: "需要版主或管理员权限" }, { status: 403 });
+    }
 
     // Replace tags if provided
     const tagsData =
@@ -89,6 +98,8 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
         ...(summary !== undefined && { summary }),
         ...(categoryId !== undefined && { categoryId }),
         ...(tagsData !== undefined && { tags: tagsData }),
+        ...(isPinned !== undefined && { isPinned }),
+        ...(isLocked !== undefined && { isLocked }),
       },
     });
 

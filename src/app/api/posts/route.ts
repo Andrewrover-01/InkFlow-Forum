@@ -12,6 +12,34 @@ const createPostSchema = z.object({
   tags: z.array(z.string()).optional(),
 });
 
+// GET /api/posts?page=1&limit=20 — paginated post list (admin-friendly)
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10) || 20));
+  const skip = (page - 1) * limit;
+
+  try {
+    const [posts, total] = await Promise.all([
+      prisma.post.findMany({
+        where: { status: { not: "DELETED" } },
+        include: {
+          author: { select: { id: true, name: true } },
+          category: { select: { id: true, name: true, slug: true } },
+          _count: { select: { replies: true, likes: true } },
+        },
+        orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
+        skip,
+        take: limit,
+      }),
+      prisma.post.count({ where: { status: { not: "DELETED" } } }),
+    ]);
+    return NextResponse.json({ posts, total, page, pageSize: limit });
+  } catch {
+    return NextResponse.json({ posts: [], total: 0, page, pageSize: limit });
+  }
+}
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {

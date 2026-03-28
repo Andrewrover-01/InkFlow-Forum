@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
-import { PenLine, BookOpen, Search, User, LogOut, Settings, ChevronDown } from "lucide-react";
+import { PenLine, BookOpen, Search, User, LogOut, Settings, ChevronDown, LayoutDashboard } from "lucide-react";
 import { useState } from "react";
 
 export function Navbar() {
@@ -89,13 +89,21 @@ export function Navbar() {
                         <User className="w-3.5 h-3.5" />
                         个人主页
                       </Link>
-                      {session.user.role === "ADMIN" && (
+                      <Link
+                        href="/settings"
+                        className="flex items-center gap-2 px-3 py-2 text-sm font-sans text-ink-700 hover:bg-parchment-100 transition-colors"
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <Settings className="w-3.5 h-3.5" />
+                        个人设置
+                      </Link>
+                      {(session.user.role === "ADMIN" || session.user.role === "MODERATOR") && (
                         <Link
                           href="/admin"
                           className="flex items-center gap-2 px-3 py-2 text-sm font-sans text-ink-700 hover:bg-parchment-100 transition-colors"
                           onClick={() => setDropdownOpen(false)}
                         >
-                          <Settings className="w-3.5 h-3.5" />
+                          <LayoutDashboard className="w-3.5 h-3.5" />
                           管理后台
                         </Link>
                       )}
