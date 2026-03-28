@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -107,9 +108,11 @@ export default function SettingsPage() {
         <div className="flex items-center gap-4 mb-5 pb-5 border-b border-parchment-200">
           <div className="w-14 h-14 rounded-full bg-cinnabar-100 border-2 border-cinnabar-200 flex items-center justify-center overflow-hidden">
             {profile.image ? (
-              <img
+              <Image
                 src={profile.image}
                 alt={profile.name || ""}
+                width={56}
+                height={56}
                 className="w-full h-full object-cover"
               />
             ) : (

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { formatRelativeTime } from "@/lib/utils";
 import { getServerSession } from "next-auth";
@@ -129,9 +130,11 @@ export default async function PostPage({ params }: PostPageProps) {
         <div className="flex items-center gap-3 mb-6 pb-4 border-b border-parchment-200">
           <div className="w-9 h-9 rounded-full bg-cinnabar-100 border border-cinnabar-200 flex items-center justify-center flex-shrink-0">
             {post.author.image ? (
-              <img
+              <Image
                 src={post.author.image}
                 alt={post.author.name || ""}
+                width={36}
+                height={36}
                 className="w-full h-full rounded-full object-cover"
               />
             ) : (
@@ -190,6 +193,7 @@ export default async function PostPage({ params }: PostPageProps) {
             key={reply.id}
             reply={reply}
             currentUserId={session?.user?.id}
+            currentUserRole={session?.user?.role}
             likedReplyIds={likedReplyIds}
           />
         ))}

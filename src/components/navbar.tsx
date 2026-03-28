@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { PenLine, BookOpen, Search, User, LogOut, Settings, ChevronDown, LayoutDashboard } from "lucide-react";
@@ -62,9 +63,11 @@ export function Navbar() {
                   >
                     <div className="w-7 h-7 rounded-full bg-cinnabar-100 border border-cinnabar-200 flex items-center justify-center">
                       {session.user.image ? (
-                        <img
+                        <Image
                           src={session.user.image}
                           alt={session.user.name || ""}
+                          width={28}
+                          height={28}
                           className="w-full h-full rounded-full object-cover"
                         />
                       ) : (

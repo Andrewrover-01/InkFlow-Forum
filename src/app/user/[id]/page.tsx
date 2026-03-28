@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatRelativeTime } from "@/lib/utils";
@@ -80,9 +81,11 @@ export default async function UserProfilePage({ params }: UserPageProps) {
           {/* Avatar */}
           <div className="w-16 h-16 rounded-full bg-cinnabar-100 border-2 border-cinnabar-200 flex items-center justify-center flex-shrink-0">
             {user.image ? (
-              <img
+              <Image
                 src={user.image}
                 alt={user.name || ""}
+                width={64}
+                height={64}
                 className="w-full h-full rounded-full object-cover"
               />
             ) : (

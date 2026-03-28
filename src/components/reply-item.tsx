@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { formatRelativeTime } from "@/lib/utils";
-import { MessageSquare, User } from "lucide-react";
+import { MessageSquare, User, Trash2 } from "lucide-react";
 import { CommentForm } from "./comment-form";
 import { CommentItem } from "./comment-item";
 import { LikeButton } from "./like-button";
@@ -35,11 +36,31 @@ interface ReplyData {
 interface ReplyItemProps {
   reply: ReplyData;
   currentUserId?: string;
+  currentUserRole?: string;
   likedReplyIds?: string[];
 }
 
-export function ReplyItem({ reply, currentUserId, likedReplyIds = [] }: ReplyItemProps) {
+export function ReplyItem({ reply, currentUserId, currentUserRole, likedReplyIds = [] }: ReplyItemProps) {
   const [showCommentForm, setShowCommentForm] = useState(false);
+  const [deleted, setDeleted] = useState(false);
+
+  const canDelete =
+    currentUserId &&
+    (currentUserId === reply.author.id ||
+      currentUserRole === "ADMIN" ||
+      currentUserRole === "MODERATOR");
+
+  async function handleDelete() {
+    if (!confirm("确认删除这条回复？")) return;
+    const res = await fetch(`/api/replies/${reply.id}`, { method: "DELETE" });
+    if (res.ok) setDeleted(true);
+    else {
+      const err = await res.json();
+      alert(err.error || "删除失败");
+    }
+  }
+
+  if (deleted) return null;
 
   return (
     <div className="card p-4">
@@ -47,9 +68,11 @@ export function ReplyItem({ reply, currentUserId, likedReplyIds = [] }: ReplyIte
       <div className="flex items-center gap-3 mb-3 pb-3 border-b border-parchment-200">
         <div className="w-8 h-8 rounded-full bg-cinnabar-100 border border-cinnabar-200 flex items-center justify-center flex-shrink-0">
           {reply.author.image ? (
-            <img
+            <Image
               src={reply.author.image}
               alt={reply.author.name ?? ""}
+              width={32}
+              height={32}
               className="w-full h-full rounded-full object-cover"
             />
           ) : (
@@ -91,6 +114,15 @@ export function ReplyItem({ reply, currentUserId, likedReplyIds = [] }: ReplyIte
             <span>评论 ({reply._count.comments})</span>
           </button>
         )}
+        {canDelete && (
+          <button
+            onClick={handleDelete}
+            className="flex items-center gap-1 hover:text-cinnabar-600 transition-colors ml-auto"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>删除</span>
+          </button>
+        )}
       </div>
 
       {/* Comments */}
@@ -101,6 +133,7 @@ export function ReplyItem({ reply, currentUserId, likedReplyIds = [] }: ReplyIte
               key={comment.id}
               comment={comment}
               currentUserId={currentUserId}
+              currentUserRole={currentUserRole}
             />
           ))}
         </div>
@@ -118,3 +151,4 @@ export function ReplyItem({ reply, currentUserId, likedReplyIds = [] }: ReplyIte
     </div>
   );
 }
+
