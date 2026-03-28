@@ -55,11 +55,11 @@ export function LikeButton({
 
       if (!res.ok) {
         // Revert on error
-        setLiked(liked);
+        setLiked(!newLiked);
         setCount((c) => c + (newLiked ? -1 : 1));
       }
     } catch {
-      setLiked(liked);
+      setLiked(!newLiked);
       setCount((c) => c + (newLiked ? -1 : 1));
     } finally {
       setLoading(false);
