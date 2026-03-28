@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       try {
         let targetOwnerId: string | null = null;
         let notifPostId: string | null = postId ?? null;
-        let notifReplyId: string | null = replyId ?? null;
+        const notifReplyId: string | null = replyId ?? null;
 
         if (postId) {
           const post = await prisma.post.findUnique({

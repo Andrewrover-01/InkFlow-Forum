@@ -16,7 +16,7 @@ interface NotificationsResponse {
 }
 
 function NotificationsContent() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
