@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { formatRelativeTime } from "@/lib/utils";
-import { Heart, MessageSquare, User } from "lucide-react";
+import { MessageSquare, User } from "lucide-react";
 import { CommentForm } from "./comment-form";
 import { CommentItem } from "./comment-item";
+import { LikeButton } from "./like-button";
 
 interface ReplyAuthor {
   id: string;
@@ -34,9 +35,10 @@ interface ReplyData {
 interface ReplyItemProps {
   reply: ReplyData;
   currentUserId?: string;
+  likedReplyIds?: string[];
 }
 
-export function ReplyItem({ reply, currentUserId }: ReplyItemProps) {
+export function ReplyItem({ reply, currentUserId, likedReplyIds = [] }: ReplyItemProps) {
   const [showCommentForm, setShowCommentForm] = useState(false);
 
   return (
@@ -74,10 +76,12 @@ export function ReplyItem({ reply, currentUserId }: ReplyItemProps) {
 
       {/* Actions */}
       <div className="flex items-center gap-4 text-xs font-sans text-ink-400">
-        <button className="flex items-center gap-1 hover:text-cinnabar-600 transition-colors">
-          <Heart className="w-3.5 h-3.5" />
-          <span>{reply._count.likes}</span>
-        </button>
+        <LikeButton
+          targetId={reply.id}
+          targetType="reply"
+          initialCount={reply._count.likes}
+          initialLiked={likedReplyIds.includes(reply.id)}
+        />
         {currentUserId && (
           <button
             onClick={() => setShowCommentForm(!showCommentForm)}

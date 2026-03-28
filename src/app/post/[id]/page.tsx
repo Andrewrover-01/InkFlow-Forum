@@ -59,6 +59,23 @@ export default async function PostPage({ params }: PostPageProps) {
     data: { viewCount: { increment: 1 } },
   }).catch(() => {});
 
+  // Fetch liked reply IDs for the current user
+  const likedReplyIds: string[] = session?.user?.id
+    ? (
+        await prisma.like
+          .findMany({
+            where: {
+              userId: session.user.id,
+              replyId: { in: post.replies.map((r) => r.id) },
+            },
+            select: { replyId: true },
+          })
+          .catch(() => [])
+      )
+        .map((l) => l.replyId)
+        .filter((rid): rid is string => rid !== null)
+    : [];
+
   return (
     <div className="space-y-4">
       {/* Post header */}
@@ -153,6 +170,7 @@ export default async function PostPage({ params }: PostPageProps) {
             key={reply.id}
             reply={reply}
             currentUserId={session?.user?.id}
+            likedReplyIds={likedReplyIds}
           />
         ))}
       </div>
