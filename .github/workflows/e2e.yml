@@ -21,7 +21,7 @@ jobs:
       NEXTAUTH_SECRET: "ci-test-secret-not-for-production"
       NEXTAUTH_URL: "http://localhost:3000"
       # Database (PostgreSQL service below)
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/inkflow_test"
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/inkflow_test?schema=public"
       # R2 — not required for E2E tests; set to empty so the app starts
       R2_ACCOUNT_ID: ""
       R2_ACCESS_KEY_ID: ""
