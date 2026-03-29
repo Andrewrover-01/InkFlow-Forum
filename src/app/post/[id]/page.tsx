@@ -5,10 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { formatRelativeTime } from "@/lib/utils";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { Eye, Heart, MessageSquare, User, Pin, Lock, Tag, PenLine } from "lucide-react";
+import { Eye, MessageSquare, User, Pin, Lock, Tag, PenLine } from "lucide-react";
 import { ReplyForm } from "@/components/reply-form";
 import { ReplyItem } from "@/components/reply-item";
 import { DeletePostButton } from "@/components/delete-post-button";
+import { LikeButton } from "@/components/like-button";
 
 export const dynamic = "force-dynamic";
 
@@ -78,6 +79,18 @@ export default async function PostPage({ params }: PostPageProps) {
         .map((l) => l.replyId)
         .filter((rid): rid is string => rid !== null)
     : [];
+
+  // Check whether the current user has liked this post
+  const likedPost: boolean = session?.user?.id
+    ? Boolean(
+        await prisma.like
+          .findFirst({
+            where: { userId: session.user.id, postId: post.id },
+            select: { id: true },
+          })
+          .catch(() => null)
+      )
+    : false;
 
   const canEdit =
     session?.user?.id === post.author.id ||
@@ -153,9 +166,12 @@ export default async function PostPage({ params }: PostPageProps) {
             <span className="flex items-center gap-1">
               <Eye className="w-3.5 h-3.5" /> {post.viewCount}
             </span>
-            <span className="flex items-center gap-1">
-              <Heart className="w-3.5 h-3.5" /> {post._count.likes}
-            </span>
+            <LikeButton
+              targetId={post.id}
+              targetType="post"
+              initialCount={post._count.likes}
+              initialLiked={likedPost}
+            />
             <span className="flex items-center gap-1">
               <MessageSquare className="w-3.5 h-3.5" /> {post._count.replies}楼
             </span>

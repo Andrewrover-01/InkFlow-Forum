@@ -36,12 +36,17 @@ async function registerAndLogin(page: Page) {
   await expect(page).toHaveURL(/\/forum/, { timeout: 10_000 });
 }
 
+/** Login only — assumes the account was already created by a previous test. */
+async function loginOnly(page: Page) {
+  await page.goto("/auth/login");
+  await page.getByPlaceholder(/邮箱/).fill(EMAIL);
+  await page.getByPlaceholder(/密码/).fill(PASSWORD);
+  await page.getByRole("button", { name: "登录" }).click();
+  await expect(page).toHaveURL(/\/forum/, { timeout: 10_000 });
+}
+
 test.describe("Post — create / view / edit / delete", () => {
   let postId: string;
-
-  test("setup: register and login", async ({ page }) => {
-    await registerAndLogin(page);
-  });
 
   test("can create a new post", async ({ page }) => {
     await registerAndLogin(page);
@@ -59,8 +64,8 @@ test.describe("Post — create / view / edit / delete", () => {
 
     await page.getByRole("button", { name: "发布帖子" }).click();
 
-    // Should redirect to the new post page
-    await expect(page).toHaveURL(/\/post\/[a-z0-9]+/, { timeout: 10_000 });
+    // Should redirect to the new post page (use {15,} so /post/create cannot false-match)
+    await expect(page).toHaveURL(/\/post\/[a-z0-9]{15,}/, { timeout: 10_000 });
 
     // Store the post ID for subsequent tests
     const url = page.url();
@@ -76,7 +81,7 @@ test.describe("Post — create / view / edit / delete", () => {
 
   test("can edit the post", async ({ page }) => {
     if (!postId) test.skip();
-    await registerAndLogin(page);
+    await loginOnly(page);
 
     await page.goto(`/post/${postId}/edit`);
     await page.locator("input[name='title']").fill("E2E 自动化测试帖子（已编辑）");
@@ -88,7 +93,7 @@ test.describe("Post — create / view / edit / delete", () => {
 
   test("can delete the post", async ({ page }) => {
     if (!postId) test.skip();
-    await registerAndLogin(page);
+    await loginOnly(page);
 
     await page.goto(`/post/${postId}`);
 

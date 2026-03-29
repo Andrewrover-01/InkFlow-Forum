@@ -59,7 +59,7 @@ test.describe("Auth — login / logout", () => {
     await chevron.click();
     await page.getByRole("button", { name: "退出登录" }).click();
 
-    // After logout, should redirect to home
-    await expect(page).toHaveURL(/^\/(forum|)$/, { timeout: 10_000 });
+    // After logout, should redirect to home (match full URL like http://localhost:3000/ or .../forum)
+    await expect(page).toHaveURL(/\/(forum)?$/, { timeout: 10_000 });
   });
 });

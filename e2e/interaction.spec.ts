@@ -11,43 +11,54 @@
 import { test, expect, Page } from "@playwright/test";
 
 const TS = Date.now();
-const EMAIL = `interact_${TS}@example.com`;
 const PASSWORD = "Test@1234";
-const NAME = `互动用户_${TS}`;
 
-async function registerAndLogin(page: Page) {
+// Each test group uses its own credentials to avoid duplicate-registration errors
+// when tests run sequentially in the same worker.
+const EMAIL_REPLY = `interact_reply_${TS}@example.com`;
+const NAME_REPLY = `互动用户_reply_${TS}`;
+
+const EMAIL_LIKE = `interact_like_${TS}@example.com`;
+const NAME_LIKE = `互动用户_like_${TS}`;
+
+async function registerAndLoginWith(
+  page: Page,
+  email: string,
+  name: string
+) {
   await page.goto("/auth/register");
-  await page.getByPlaceholder("你的昵称").fill(NAME);
-  await page.getByPlaceholder("email@example.com").fill(EMAIL);
+  await page.getByPlaceholder("你的昵称").fill(name);
+  await page.getByPlaceholder("email@example.com").fill(email);
   const pwFields = page.locator('input[type="password"]');
   await pwFields.nth(0).fill(PASSWORD);
   await pwFields.nth(1).fill(PASSWORD);
   await page.getByRole("button", { name: "注册" }).click();
   await expect(page).toHaveURL(/\/auth\/login/);
 
-  await page.getByPlaceholder(/邮箱/).fill(EMAIL);
+  await page.getByPlaceholder(/邮箱/).fill(email);
   await page.getByPlaceholder(/密码/).fill(PASSWORD);
   await page.getByRole("button", { name: "登录" }).click();
   await expect(page).toHaveURL(/\/forum/, { timeout: 10_000 });
 }
 
-async function createPost(page: Page): Promise<string> {
+async function createPost(page: Page, ts: number): Promise<string> {
   await page.goto("/post/create");
   const categorySelect = page.locator("select[name='categoryId']");
   await categorySelect.selectOption({ index: 1 });
-  await page.locator("input[name='title']").fill(`互动测试帖子 ${TS}`);
+  await page.locator("input[name='title']").fill(`互动测试帖子 ${ts}`);
   await page.locator("textarea[name='content']").fill(
     "这是互动 E2E 测试的帖子，内容超过10个字符。"
   );
   await page.getByRole("button", { name: "发布帖子" }).click();
-  await expect(page).toHaveURL(/\/post\/[a-z0-9]+/, { timeout: 10_000 });
+  // Use a minimum-length check so the regex cannot match /post/create (6 chars)
+  await expect(page).toHaveURL(/\/post\/[a-z0-9]{15,}/, { timeout: 10_000 });
   return page.url().split("/post/")[1];
 }
 
 test.describe("Interaction — reply", () => {
   test("can reply to a post", async ({ page }) => {
-    await registerAndLogin(page);
-    const postId = await createPost(page);
+    await registerAndLoginWith(page, EMAIL_REPLY, NAME_REPLY);
+    const postId = await createPost(page, TS);
 
     await page.goto(`/post/${postId}`);
 
@@ -64,8 +75,9 @@ test.describe("Interaction — reply", () => {
 
 test.describe("Interaction — like / unlike", () => {
   test("can like and unlike a post", async ({ page }) => {
-    await registerAndLogin(page);
-    const postId = await createPost(page);
+    // Use a dedicated account so re-registration is never attempted
+    await registerAndLoginWith(page, EMAIL_LIKE, NAME_LIKE);
+    const postId = await createPost(page, TS + 1);
 
     // Need another user's post to like (same-user likes are still toggled)
     await page.goto(`/post/${postId}`);

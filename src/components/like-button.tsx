@@ -70,6 +70,7 @@ export function LikeButton({
 
   return (
     <button
+      data-testid="like-button"
       onClick={handleLike}
       disabled={loading}
       aria-label={liked ? "取消点赞" : "点赞"}
