@@ -20,7 +20,7 @@ export function LikeButton({
   initialLiked = false,
   size = "sm",
 }: LikeButtonProps) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [liked, setLiked] = useState(initialLiked);
   const [count, setCount] = useState(initialCount);
@@ -72,7 +72,7 @@ export function LikeButton({
     <button
       data-testid="like-button"
       onClick={handleLike}
-      disabled={loading}
+      disabled={loading || status === "loading"}
       aria-label={liked ? "取消点赞" : "点赞"}
       className={`flex items-center gap-1 transition-colors disabled:opacity-70 ${
         liked

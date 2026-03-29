@@ -76,7 +76,7 @@ test.describe("Post — create / view / edit / delete", () => {
   test("can view the created post", async ({ page }) => {
     if (!postId) test.skip();
     await page.goto(`/post/${postId}`);
-    await expect(page.locator("h1, h2").filter({ hasText: "E2E 自动化测试帖子" })).toBeVisible();
+    await expect(page.locator("h1, h2").filter({ hasText: "E2E 自动化测试帖子" }).first()).toBeVisible();
   });
 
   test("can edit the post", async ({ page }) => {
