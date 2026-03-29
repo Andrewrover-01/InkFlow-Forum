@@ -1,0 +1,256 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ================================
+// RBAC: Roles & Permissions
+// ================================
+
+enum UserRole {
+  ADMIN
+  MODERATOR
+  MEMBER
+  GUEST
+}
+
+enum PostStatus {
+  PUBLISHED
+  DRAFT
+  DELETED
+  PINNED
+  LOCKED
+}
+
+enum NotificationType {
+  REPLY
+  LIKE
+}
+
+// ================================
+// User Model
+// ================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  bio           String?
+  role          UserRole  @default(MEMBER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // NextAuth relations
+  accounts Account[]
+  sessions Session[]
+
+  // Forum relations
+  posts    Post[]
+  replies  Reply[]
+  comments Comment[]
+  likes    Like[]
+
+  // Notification relations
+  notifications     Notification[] @relation("notifications")
+  sentNotifications Notification[] @relation("sentNotifications")
+
+  @@index([email])
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ================================
+// Forum Models
+// ================================
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  slug        String   @unique
+  icon        String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  posts       Post[]
+
+  @@map("categories")
+}
+
+model Tag {
+  id    String     @id @default(cuid())
+  name  String     @unique
+  posts PostTag[]
+
+  @@map("tags")
+}
+
+model PostTag {
+  postId String
+  tagId  String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@map("post_tags")
+}
+
+model Post {
+  id         String     @id @default(cuid())
+  title      String
+  content    String     @db.Text
+  summary    String?
+  status     PostStatus @default(PUBLISHED)
+  viewCount  Int        @default(0)
+  isPinned   Boolean    @default(false)
+  isLocked   Boolean    @default(false)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  authorId   String
+  categoryId String
+
+  author   User     @relation(fields: [authorId], references: [id])
+  category Category @relation(fields: [categoryId], references: [id])
+  replies  Reply[]
+  tags     PostTag[]
+  likes    Like[]
+  notifications Notification[]
+
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([createdAt])
+  @@map("posts")
+}
+
+// 盖楼 - First-level reply to a post
+model Reply {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  floor     Int      // 楼层号
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  postId   String
+  authorId String
+
+  post     Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author   User      @relation(fields: [authorId], references: [id])
+  comments Comment[]
+  likes    Like[]
+  notifications Notification[]
+
+  @@index([postId])
+  @@index([floor])
+  @@map("replies")
+}
+
+// 多级评论 - Multi-level comment on a reply
+model Comment {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  replyId  String
+  authorId String
+  parentId String? // for nested comments
+
+  reply    Reply     @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  author   User      @relation(fields: [authorId], references: [id])
+  parent   Comment?  @relation("CommentToComment", fields: [parentId], references: [id])
+  children Comment[] @relation("CommentToComment")
+  likes    Like[]
+
+  @@index([replyId])
+  @@index([parentId])
+  @@map("comments")
+}
+
+// Polymorphic likes
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String?
+  replyId   String?
+  commentId String?
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post    Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reply   Reply?   @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@unique([userId, replyId])
+  @@unique([userId, commentId])
+  @@map("likes")
+}
+
+// In-app notifications
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String           // recipient
+  type       NotificationType
+  fromUserId String?          // who triggered the notification
+  postId     String?          // related post (for context / navigation)
+  replyId    String?          // related reply (for REPLY type)
+  isRead     Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+
+  user     User   @relation("notifications", fields: [userId], references: [id], onDelete: Cascade)
+  fromUser User?  @relation("sentNotifications", fields: [fromUserId], references: [id], onDelete: SetNull)
+  post     Post?  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reply    Reply? @relation(fields: [replyId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notifications")
+}
