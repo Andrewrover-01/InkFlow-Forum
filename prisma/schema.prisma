@@ -234,6 +234,22 @@ model Like {
   @@map("likes")
 }
 
+// Hot Novels ranking cache (refreshed periodically)
+model HotNovel {
+  id        String   @id @default(cuid())
+  rank      Int      @unique
+  title     String
+  author    String
+  category  String
+  hotScore  Int      @default(0)
+  sourceUrl String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@index([rank])
+  @@map("hot_novels")
+}
+
 // In-app notifications
 model Notification {
   id         String           @id @default(cuid())

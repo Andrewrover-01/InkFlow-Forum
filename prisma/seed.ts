@@ -224,6 +224,30 @@ async function main() {
   });
 
   console.log("✅ Created sample posts and replies");
+
+  // Seed hot novels ranking
+  const hotNovels = [
+    { rank: 1,  title: "斗破苍穹",   author: "天蚕土豆", category: "玄幻",   hotScore: 9850, sourceUrl: "https://www.qidian.com" },
+    { rank: 2,  title: "完美世界",   author: "辰东",     category: "玄幻",   hotScore: 9720, sourceUrl: "https://www.qidian.com" },
+    { rank: 3,  title: "遮天",       author: "辰东",     category: "仙侠",   hotScore: 9680, sourceUrl: "https://www.qidian.com" },
+    { rank: 4,  title: "凡人修仙传", author: "忘语",     category: "仙侠",   hotScore: 9540, sourceUrl: "https://www.qidian.com" },
+    { rank: 5,  title: "庆余年",     author: "猫腻",     category: "历史",   hotScore: 9480, sourceUrl: "https://www.qidian.com" },
+    { rank: 6,  title: "雪中悍刀行", author: "烽火戏诸侯", category: "武侠", hotScore: 9350, sourceUrl: "https://www.qidian.com" },
+    { rank: 7,  title: "大主宰",     author: "天蚕土豆", category: "玄幻",   hotScore: 9200, sourceUrl: "https://www.qidian.com" },
+    { rank: 8,  title: "择天记",     author: "猫腻",     category: "仙侠",   hotScore: 9100, sourceUrl: "https://www.qidian.com" },
+    { rank: 9,  title: "武动乾坤",   author: "天蚕土豆", category: "玄幻",   hotScore: 8980, sourceUrl: "https://www.qidian.com" },
+    { rank: 10, title: "将夜",       author: "猫腻",     category: "仙侠",   hotScore: 8860, sourceUrl: "https://www.qidian.com" },
+  ];
+
+  for (const novel of hotNovels) {
+    await prisma.hotNovel.upsert({
+      where: { rank: novel.rank },
+      update: { ...novel },
+      create: { ...novel },
+    });
+  }
+
+  console.log(`✅ Seeded ${hotNovels.length} hot novels`);
   console.log("🎉 Seeding completed!");
 }
 
