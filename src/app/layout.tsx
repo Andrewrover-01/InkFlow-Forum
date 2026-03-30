@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Navbar } from "@/components/navbar";
+import { HotNovelsSidebar } from "@/components/hot-novels-sidebar";
 
 export const metadata: Metadata = {
   title: {
@@ -23,9 +24,18 @@ export default function RootLayout({
         <Providers>
           <div className="min-h-screen flex flex-col">
             <Navbar />
-            <main className="flex-1 container mx-auto px-4 py-6 max-w-5xl">
-              {children}
-            </main>
+            <div className="flex-1 container mx-auto px-4 py-6 max-w-6xl">
+              <div className="flex gap-6 items-start">
+                {/* Hot Novels Sidebar – visible on large screens */}
+                <div className="hidden lg:block w-52 flex-shrink-0">
+                  <HotNovelsSidebar />
+                </div>
+                {/* Main content */}
+                <main className="flex-1 min-w-0">
+                  {children}
+                </main>
+              </div>
+            </div>
             <footer className="border-t border-parchment-300 py-6 mt-8">
               <div className="container mx-auto px-4 text-center text-ink-500 text-sm font-sans">
                 <p>墨香论坛 · 古风小说社区</p>
