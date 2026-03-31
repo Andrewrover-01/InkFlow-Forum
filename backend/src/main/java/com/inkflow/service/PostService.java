@@ -115,7 +115,10 @@ public class PostService {
 
     private String generateSummary(String content) {
         if (content == null) return "";
-        return content.length() > SUMMARY_MAX_LENGTH ? content.substring(0, SUMMARY_MAX_LENGTH) + "..." : content;
+        // Use codePoint-aware truncation to avoid splitting multi-byte UTF-8 characters
+        if (content.codePointCount(0, content.length()) <= SUMMARY_MAX_LENGTH) return content;
+        int offset = content.offsetByCodePoints(0, SUMMARY_MAX_LENGTH);
+        return content.substring(0, offset) + "...";
     }
 
     private boolean isAdminOrModerator(String role) {

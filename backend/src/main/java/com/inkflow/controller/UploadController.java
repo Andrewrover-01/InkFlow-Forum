@@ -9,12 +9,16 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
 @RestController
 @RequestMapping("/api/upload")
 public class UploadController {
+
+    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif", ".webp");
 
     @Value("${inkflow.upload.path}")
     private String uploadPath;
@@ -24,10 +28,16 @@ public class UploadController {
         if (file.isEmpty()) {
             return ApiResponse.error(400, "文件不能为空");
         }
+        if (file.getSize() > MAX_FILE_SIZE) {
+            return ApiResponse.error(400, "文件大小不能超过5MB");
+        }
         String originalFilename = file.getOriginalFilename();
         String extension = "";
         if (originalFilename != null && originalFilename.contains(".")) {
-            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            extension = originalFilename.substring(originalFilename.lastIndexOf(".")).toLowerCase();
+        }
+        if (!ALLOWED_EXTENSIONS.contains(extension)) {
+            return ApiResponse.error(400, "仅支持上传 JPG、PNG、GIF、WebP 格式图片");
         }
         String filename = UUID.randomUUID().toString() + extension;
         File dir = new File(uploadPath);
