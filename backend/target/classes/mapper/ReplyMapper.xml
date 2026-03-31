@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.inkflow.mapper.ReplyMapper">
+
+    <resultMap id="ReplyVOResultMap" type="com.inkflow.dto.response.ReplyVO">
+        <id property="id" column="id"/>
+        <result property="content" column="content"/>
+        <result property="floor" column="floor"/>
+        <result property="postId" column="post_id"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="likeCount" column="like_count"/>
+        <result property="isLiked" column="is_liked"/>
+        <association property="author" javaType="com.inkflow.dto.response.UserVO">
+            <id property="id" column="author_id"/>
+            <result property="name" column="author_name"/>
+            <result property="avatar" column="author_avatar"/>
+        </association>
+    </resultMap>
+
+    <select id="selectReplyListWithDetails" resultMap="ReplyVOResultMap">
+        SELECT
+            r.id, r.content, r.floor, r.post_id, r.created_at, r.updated_at,
+            u.id AS author_id, u.name AS author_name, u.avatar AS author_avatar,
+            (SELECT COUNT(*) FROM `like` l WHERE l.reply_id = r.id) AS like_count,
+            <choose>
+                <when test="currentUserId != null">
+                    (SELECT COUNT(*) FROM `like` l WHERE l.reply_id = r.id AND l.user_id = #{currentUserId}) AS is_liked
+                </when>
+                <otherwise>
+                    0 AS is_liked
+                </otherwise>
+            </choose>
+        FROM reply r
+        LEFT JOIN user u ON r.author_id = u.id
+        WHERE r.post_id = #{postId}
+        ORDER BY r.floor ASC
+    </select>
+
+</mapper>
