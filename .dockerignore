@@ -1,0 +1,35 @@
+# Version control
+.git
+.gitignore
+
+# Dependencies (rebuilt inside Docker)
+node_modules
+
+# Build outputs
+.next
+out
+build
+
+# Local env files (never bake secrets into image)
+.env
+.env.local
+.env*.local
+
+# Tests & CI
+e2e
+coverage
+.github
+playwright-report
+test-results
+
+# Editor & OS artifacts
+.DS_Store
+*.pem
+.idea
+.vscode
+
+# Docs
+*.md
+PLAN.md
+LEARNING_MANUAL.md
+LICENSE

@@ -1,0 +1,72 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: inkflow_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-inkflow}
+      POSTGRES_USER:     ${POSTGRES_USER:-inkflow_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-inkflow_user} -d ${POSTGRES_DB:-inkflow}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - inkflow_net
+
+  # ── Next.js Application ─────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: inkflow_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Database (points to the postgres service above)
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-inkflow_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-inkflow}"
+      # NextAuth
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL:    ${NEXTAUTH_URL:-http://localhost}
+      # Cloudflare R2 (optional — for avatar uploads)
+      R2_ACCOUNT_ID:        ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID:     ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_BUCKET:            ${R2_BUCKET:-}
+      R2_PUBLIC_URL:        ${R2_PUBLIC_URL:-}
+    expose:
+      - "3000"
+    networks:
+      - inkflow_net
+
+  # ── Nginx reverse proxy ─────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: inkflow_nginx
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"     # reserved for HTTPS / Certbot volume mount
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # Uncomment to mount Let's Encrypt certs:
+      # - /etc/letsencrypt:/etc/letsencrypt:ro
+    networks:
+      - inkflow_net
+
+volumes:
+  postgres_data:
+
+networks:
+  inkflow_net:
+    driver: bridge
