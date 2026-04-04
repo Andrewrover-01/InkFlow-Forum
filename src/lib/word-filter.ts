@@ -208,11 +208,12 @@ function scanWithTrie(
       if (!child) break;
       node = child;
       if (node.isEnd) {
+        // posMap[j] is always defined here: j < normalised.length === posMap.length
         hits.push({
           word:     node.word,
           severity: node.severity,
           start:    posMap[i],
-          end:      (posMap[j] ?? j) + 1,
+          end:      posMap[j] + 1,
         });
         // Don't break — there may be longer matches starting at same position
       }
@@ -226,6 +227,9 @@ function scanWithTrie(
 
 // The combined Trie is rebuilt from built-in + custom words together.
 let combinedTrie: TrieNode | null = null;
+
+// Static Trie using only built-in words (no DB); lazily built by scanTextSync.
+let staticTrie: TrieNode | null = null;
 
 // Cache: custom words loaded from DB
 let customWordsCache: WordEntry[] = [];
@@ -330,5 +334,3 @@ export function scanTextSync(text: string): ScanResult {
   const score = Math.min(100, worstSeverity + (hits.length - 1) * 5);
   return { hits, worstSeverity, score };
 }
-
-let staticTrie: TrieNode | null = null;
