@@ -398,3 +398,28 @@ model Report {
   @@index([reporterId])
   @@map("reports")
 }
+
+// ================================
+// Sensitive Word Filter
+// ================================
+
+enum SensitiveWordCategory {
+  BASIC   // 基础通用词库
+  NOVEL   // 小说行业专属词库
+  CUSTOM  // 管理员自定义词库
+}
+
+model SensitiveWord {
+  id         String                @id @default(cuid())
+  word       String                @unique
+  category   SensitiveWordCategory @default(CUSTOM)
+  severity   Int                   @default(50) // 0–100: higher = more severe
+  isActive   Boolean               @default(true)
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+  createdBy  String?               // admin user ID
+
+  @@index([category, isActive])
+  @@index([word])
+  @@map("sensitive_words")
+}

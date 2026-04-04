@@ -1,24 +1,30 @@
 /**
  * Machine-based content moderator.
  *
- * Performs automatic text screening against a categorised keyword blocklist.
- * The result feeds directly into the moderation pipeline before content is
- * persisted, enabling a closed-loop machine-review + human-review workflow:
+ * Performs automatic text screening using two complementary layers:
  *
+ * 1. **Sensitive word Trie/DFA filter** (`word-filter.ts`) — scans text with a
+ *    Trie built from built-in word lists (basic + novel-specific) and any
+ *    DB-backed custom words added by admins.  Supports variant detection via
+ *    noise-character stripping.
+ *
+ * 2. **Regex pattern blocklist** — catches multi-word phrases and structural
+ *    patterns that are harder to express as single words (e.g. "网络赌博").
+ *
+ * The two layers are run in parallel; the more severe result wins.
+ *
+ * Results map to three moderation outcomes:
  *   APPROVED  → content is clean, published immediately.
- *   FLAGGED   → suspected violation; content is hidden and queued for human
- *               review.
- *   REJECTED  → severe violation; content is blocked outright without
- *               persisting to the database.
+ *   FLAGGED   → suspected violation; content hidden and queued for human review.
+ *   REJECTED  → confirmed violation; content blocked outright.
  *
- * Extensibility notes:
- * - `BLOCKLIST` categories can be extended by adding entries to the arrays.
- * - `moderateImage` is a stub with a documented interface; swap in an external
- *   image-recognition API (e.g. Tencent Cloud Content Security) by replacing
- *   the stub body.
+ * Extensibility:
+ * - Add entries to `BLOCKLIST` (regex patterns) or to the DB custom word table.
+ * - `moderateImage` is a stub ready for a real image-recognition API.
  */
 
 import { ModerationStatus } from "@prisma/client";
+import { scanText } from "@/lib/word-filter";
 
 // ── Keyword blocklist ─────────────────────────────────────────────────────────
 
@@ -153,31 +159,44 @@ export interface TextModerationResult {
 // ── Core text-screening function ──────────────────────────────────────────────
 
 /**
- * Scan `text` against the keyword blocklist.
+ * Scan `text` against both the Trie word filter and the regex blocklist.
+ * The more severe result across both layers is returned.
  *
- * Rules are evaluated in descending severity order; the first matching rule
- * determines the result.
+ * NOTE: This is now async because the Trie filter may need to load custom
+ * words from the database on first call (subsequent calls use a 5-min cache).
  */
-export function moderateText(text: string): TextModerationResult {
-  // Normalise: collapse repeated whitespace / punctuation used to evade filters
+export async function moderateText(text: string): Promise<TextModerationResult> {
+  // Normalise for regex layer: collapse repeated whitespace / punctuation
   const normalised = text.replace(/[\s\u3000\u00A0]+/g, " ");
 
-  // Evaluate SEVERE rules first so the highest-severity match wins
+  // ── Layer 1: Regex blocklist ─────────────────────────────────────────────
+  let regexResult: TextModerationResult = { status: "APPROVED", score: 0 };
   for (const category of BLOCKLIST) {
     for (const pattern of category.patterns) {
       if (pattern.test(normalised)) {
         const status: ModerationStatus =
           category.severity === "SEVERE" ? "REJECTED" : "FLAGGED";
-        return {
-          status,
-          reason: category.label,
-          score:  category.score,
-        };
+        regexResult = { status, reason: category.label, score: category.score };
+        break;
       }
     }
+    if (regexResult.status === "REJECTED") break;
   }
 
-  return { status: "APPROVED", score: 0 };
+  // ── Layer 2: Trie/DFA word filter ────────────────────────────────────────
+  const trieScan = await scanText(text);
+  let trieResult: TextModerationResult = { status: "APPROVED", score: 0 };
+  if (trieScan.hits.length > 0) {
+    trieResult = {
+      status: trieScan.worstSeverity >= 80 ? "REJECTED" : "FLAGGED",
+      reason: trieScan.hits[0].word,
+      score:  trieScan.score,
+    };
+  }
+
+  // Return the more severe of the two results
+  if (regexResult.score >= trieResult.score) return regexResult;
+  return trieResult;
 }
 
 // ── Image moderation stub ─────────────────────────────────────────────────────
@@ -236,7 +255,7 @@ export async function moderateContent(
   // ── Text screening ────────────────────────────────────────────────────────
   for (const text of input.textFields) {
     if (!text) continue;
-    const result = moderateText(text);
+    const result = await moderateText(text);
     if (result.score > worst.score) {
       worst = { ...result, fromImage: false };
     }
