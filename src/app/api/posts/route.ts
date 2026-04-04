@@ -9,6 +9,7 @@ import {
   captchaPlugin,
   sanitizePlugin,
 } from "@/lib/api-security";
+import { moderateContent } from "@/lib/content-moderator";
 
 const createPostSchema = z.object({
   title: z.string().min(4, "标题至少4个字符").max(100, "标题最多100个字符"),
@@ -85,15 +86,28 @@ export async function POST(req: NextRequest) {
   ]).run(ctx);
   if (bodyGuard) return bodyGuard;
 
+  // ── Machine content moderation ────────────────────────────────────────────
+  const modResult = await moderateContent({
+    textFields: [parsed.title, parsed.content, parsed.summary ?? ""],
+  });
+
+  if (modResult.status === "REJECTED") {
+    return NextResponse.json(
+      { error: `内容违规，无法发布：${modResult.reason ?? "包含违禁内容"}` },
+      { status: 422 },
+    );
+  }
+
   // ── Business logic ─────────────────────────────────────────────────────────
   try {
     const post = await prisma.post.create({
       data: {
-        title:      parsed.title,
-        content:    parsed.content,
-        summary:    parsed.summary,
-        authorId:   ctx.session!.user!.id,
-        categoryId: parsed.categoryId,
+        title:            parsed.title,
+        content:          parsed.content,
+        summary:          parsed.summary,
+        authorId:         ctx.session!.user!.id,
+        categoryId:       parsed.categoryId,
+        moderationStatus: modResult.status, // APPROVED or FLAGGED
         tags:
           parsed.tags && parsed.tags.length > 0
             ? {
@@ -112,7 +126,31 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json(post, { status: 201 });
+    // Persist the moderation audit record (fire-and-forget)
+    if (modResult.status !== "APPROVED") {
+      prisma.moderationRecord
+        .create({
+          data: {
+            targetType: "POST",
+            postId:     post.id,
+            autoStatus: modResult.status,
+            autoReason: modResult.reason,
+            autoScore:  modResult.score,
+            status:     "PENDING",
+          },
+        })
+        .catch(() => {});
+    }
+
+    return NextResponse.json(
+      {
+        ...post,
+        ...(modResult.status === "FLAGGED" && {
+          warning: "您的帖子正在审核中，审核通过后将公开显示",
+        }),
+      },
+      { status: 201 },
+    );
   } catch (error) {
     console.error("Create post error:", error);
     return NextResponse.json({ error: "发帖失败，请稍后重试" }, { status: 500 });

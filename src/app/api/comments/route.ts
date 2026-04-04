@@ -9,6 +9,7 @@ import {
   captchaPlugin,
   sanitizePlugin,
 } from "@/lib/api-security";
+import { moderateContent } from "@/lib/content-moderator";
 
 const commentSchema = z.object({
   replyId:       z.string().min(1),
@@ -50,18 +51,52 @@ export async function POST(req: NextRequest) {
   ]).run(ctx);
   if (bodyGuard) return bodyGuard;
 
+  // ── Machine content moderation ─────────────────────────────────────────────
+  const modResult = await moderateContent({ textFields: [parsed.content] });
+  if (modResult.status === "REJECTED") {
+    return NextResponse.json(
+      { error: `内容违规，无法发布：${modResult.reason ?? "包含违禁内容"}` },
+      { status: 422 },
+    );
+  }
+
   // ── Business logic ─────────────────────────────────────────────────────────
   try {
     const comment = await prisma.comment.create({
       data: {
-        content:  parsed.content,
-        replyId:  parsed.replyId,
-        parentId: parsed.parentId || null,
-        authorId: ctx.session!.user!.id,
+        content:          parsed.content,
+        replyId:          parsed.replyId,
+        parentId:         parsed.parentId || null,
+        authorId:         ctx.session!.user!.id,
+        moderationStatus: modResult.status,
       },
     });
 
-    return NextResponse.json(comment, { status: 201 });
+    // Persist moderation audit record for flagged content (fire-and-forget)
+    if (modResult.status !== "APPROVED") {
+      prisma.moderationRecord
+        .create({
+          data: {
+            targetType: "COMMENT",
+            commentId:  comment.id,
+            autoStatus: modResult.status,
+            autoReason: modResult.reason,
+            autoScore:  modResult.score,
+            status:     "PENDING",
+          },
+        })
+        .catch(() => {});
+    }
+
+    return NextResponse.json(
+      {
+        ...comment,
+        ...(modResult.status === "FLAGGED" && {
+          warning: "您的评论正在审核中，审核通过后将公开显示",
+        }),
+      },
+      { status: 201 },
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

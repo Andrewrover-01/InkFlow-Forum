@@ -35,6 +35,29 @@ enum NotificationType {
 }
 
 // ================================
+// Content Moderation
+// ================================
+
+enum ModerationStatus {
+  PENDING   // awaiting human review (flagged by machine)
+  APPROVED  // content is clean / approved
+  FLAGGED   // suspected violation, needs human review
+  REJECTED  // confirmed violation, hidden from public
+}
+
+enum ModerationTargetType {
+  POST
+  REPLY
+  COMMENT
+}
+
+enum ReportStatus {
+  PENDING    // not yet reviewed by moderator
+  RESOLVED   // reviewed and action taken
+  DISMISSED  // reviewed, no action needed
+}
+
+// ================================
 // User Model
 // ================================
 
@@ -63,6 +86,11 @@ model User {
   // Notification relations
   notifications     Notification[] @relation("notifications")
   sentNotifications Notification[] @relation("sentNotifications")
+
+  // Moderation relations
+  moderationReviews ModerationRecord[] @relation("moderationReviewer")
+  reportsMade       Report[]           @relation("reportsMade")
+  reportsResolved   Report[]           @relation("reportsResolved")
 
   @@index([email])
   @@map("users")
@@ -151,6 +179,7 @@ model Post {
   viewCount  Int        @default(0)
   isPinned   Boolean    @default(false)
   isLocked   Boolean    @default(false)
+  moderationStatus ModerationStatus @default(APPROVED)
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
@@ -162,7 +191,9 @@ model Post {
   replies  Reply[]
   tags     PostTag[]
   likes    Like[]
-  notifications Notification[]
+  notifications     Notification[]
+  moderationRecords ModerationRecord[]
+  reports           Report[]
 
   @@index([authorId])
   @@index([categoryId])
@@ -175,6 +206,7 @@ model Reply {
   id        String   @id @default(cuid())
   content   String   @db.Text
   floor     Int      // 楼层号
+  moderationStatus ModerationStatus @default(APPROVED)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -185,7 +217,9 @@ model Reply {
   author   User      @relation(fields: [authorId], references: [id])
   comments Comment[]
   likes    Like[]
-  notifications Notification[]
+  notifications     Notification[]
+  moderationRecords ModerationRecord[]
+  reports           Report[]
 
   @@index([postId])
   @@index([floor])
@@ -196,6 +230,7 @@ model Reply {
 model Comment {
   id        String   @id @default(cuid())
   content   String   @db.Text
+  moderationStatus ModerationStatus @default(APPROVED)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -208,6 +243,8 @@ model Comment {
   parent   Comment?  @relation("CommentToComment", fields: [parentId], references: [id])
   children Comment[] @relation("CommentToComment")
   likes    Like[]
+  moderationRecords ModerationRecord[]
+  reports           Report[]
 
   @@index([replyId])
   @@index([parentId])
@@ -299,4 +336,65 @@ model Notification {
   @@index([userId, isRead])
   @@index([userId, createdAt(sort: Desc)])
   @@map("notifications")
+}
+
+// ================================
+// Content Moderation Records
+// ================================
+
+model ModerationRecord {
+  id         String               @id @default(cuid())
+  targetType ModerationTargetType
+  postId     String?
+  replyId    String?
+  commentId  String?
+
+  // Machine review result
+  autoStatus ModerationStatus
+  autoReason String?              // which rule/keyword triggered
+  autoScore  Int                  @default(0) // severity 0-100
+
+  // Human review result (null = not yet reviewed)
+  status     ModerationStatus     @default(PENDING)
+  reviewerId String?
+  reviewNote String?
+  reviewedAt DateTime?
+
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  post       Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reply      Reply?   @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  comment    Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  reviewer   User?    @relation("moderationReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([targetType, status])
+  @@index([createdAt(sort: Desc)])
+  @@map("moderation_records")
+}
+
+// User-submitted content reports
+model Report {
+  id           String               @id @default(cuid())
+  reporterId   String
+  targetType   ModerationTargetType
+  postId       String?
+  replyId      String?
+  commentId    String?
+  reason       String               // reporter's stated reason
+  status       ReportStatus         @default(PENDING)
+  resolvedById String?
+  resolvedNote String?
+  resolvedAt   DateTime?
+  createdAt    DateTime             @default(now())
+
+  reporter   User     @relation("reportsMade",     fields: [reporterId],   references: [id], onDelete: Cascade)
+  resolvedBy User?    @relation("reportsResolved", fields: [resolvedById], references: [id], onDelete: SetNull)
+  post       Post?    @relation(fields: [postId],   references: [id], onDelete: Cascade)
+  reply      Reply?   @relation(fields: [replyId],  references: [id], onDelete: Cascade)
+  comment    Comment? @relation(fields: [commentId],references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([reporterId])
+  @@map("reports")
 }

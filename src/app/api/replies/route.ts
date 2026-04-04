@@ -9,6 +9,7 @@ import {
   captchaPlugin,
   sanitizePlugin,
 } from "@/lib/api-security";
+import { moderateContent } from "@/lib/content-moderator";
 
 const replySchema = z.object({
   postId:        z.string().min(1),
@@ -49,6 +50,15 @@ export async function POST(req: NextRequest) {
   ]).run(ctx);
   if (bodyGuard) return bodyGuard;
 
+  // ── Machine content moderation ─────────────────────────────────────────────
+  const modResult = await moderateContent({ textFields: [parsed.content] });
+  if (modResult.status === "REJECTED") {
+    return NextResponse.json(
+      { error: `内容违规，无法发布：${modResult.reason ?? "包含违禁内容"}` },
+      { status: 422 },
+    );
+  }
+
   // ── Business logic ─────────────────────────────────────────────────────────
   try {
     const post = await prisma.post.findUnique({
@@ -73,12 +83,29 @@ export async function POST(req: NextRequest) {
 
     const reply = await prisma.reply.create({
       data: {
-        content:  parsed.content,
+        content:          parsed.content,
         floor,
-        postId:   parsed.postId,
-        authorId: ctx.session!.user!.id,
+        postId:           parsed.postId,
+        authorId:         ctx.session!.user!.id,
+        moderationStatus: modResult.status,
       },
     });
+
+    // Persist moderation audit record for flagged content (fire-and-forget)
+    if (modResult.status !== "APPROVED") {
+      prisma.moderationRecord
+        .create({
+          data: {
+            targetType: "REPLY",
+            replyId:    reply.id,
+            autoStatus: modResult.status,
+            autoReason: modResult.reason,
+            autoScore:  modResult.score,
+            status:     "PENDING",
+          },
+        })
+        .catch(() => {});
+    }
 
     // Notify post author (skip if author is replying to their own post)
     if (post.authorId !== ctx.session!.user!.id) {
@@ -97,7 +124,15 @@ export async function POST(req: NextRequest) {
         });
     }
 
-    return NextResponse.json(reply, { status: 201 });
+    return NextResponse.json(
+      {
+        ...reply,
+        ...(modResult.status === "FLAGGED" && {
+          warning: "您的回复正在审核中，审核通过后将公开显示",
+        }),
+      },
+      { status: 201 },
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
