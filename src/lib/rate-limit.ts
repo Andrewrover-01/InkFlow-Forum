@@ -20,6 +20,7 @@ export const RATE_LIMITS: Record<string, RateLimitConfig> = {
   like:     { windowMs: 60 * 1000,      maxRequests: 30 },  // 30 likes / minute
   view:     { windowMs: 60 * 1000,      maxRequests: 10 },  // 10 view-count bumps / minute (per IP)
   register: { windowMs: 60 * 60 * 1000, maxRequests: 3  },  // 3 registrations / hour (per IP)
+  upload:   { windowMs: 60 * 60 * 1000, maxRequests: 20 },  // 20 uploads / hour
 };
 
 /** Tighter limits applied to gray-listed identifiers (half the normal quota) */

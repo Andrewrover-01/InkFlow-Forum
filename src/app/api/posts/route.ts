@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { abuseGate } from "@/lib/abuse-gate";
-import { verifyCaptchaToken } from "@/lib/captcha";
+import {
+  buildSecurityContext,
+  createSecurityPipeline,
+  authPlugin,
+  abuseGatePlugin,
+  captchaPlugin,
+  sanitizePlugin,
+} from "@/lib/api-security";
 
 const createPostSchema = z.object({
   title: z.string().min(4, "标题至少4个字符").max(100, "标题最多100个字符"),
@@ -45,51 +49,71 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "请先登录" }, { status: 401 });
-  }
+  // Build shared security context (resolves session, IP, fingerprint once)
+  const ctx = await buildSecurityContext(req);
 
-  const blocked = await abuseGate({ action: "post", userId: session.user.id, req });
-  if (blocked) return blocked;
+  // ── Pre-body security checks (auth + abuse gate) ───────────────────────────
+  const preGuard = await createSecurityPipeline([
+    authPlugin(),
+    abuseGatePlugin("post"),
+  ]).run(ctx);
+  if (preGuard) return preGuard;
 
+  // ── Parse and validate request body ───────────────────────────────────────
+  let parsed: z.infer<typeof createPostSchema>;
   try {
     const body = await req.json();
-    const { title, content, summary, categoryId, tags, captchaToken, captchaAnswer } = createPostSchema.parse(body);
-
-    // CAPTCHA verification
-    const captcha = verifyCaptchaToken(captchaToken, "post", captchaAnswer);
-    if (!captcha.valid) {
-      return NextResponse.json({ error: captcha.error }, { status: 400 });
+    parsed = createPostSchema.parse(body);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: error.issues[0]?.message ?? "Invalid input" },
+        { status: 400 },
+      );
     }
+    return NextResponse.json({ error: "无效的请求格式" }, { status: 400 });
+  }
 
+  // ── Body-level security checks (sanitize + captcha) ───────────────────────
+  const bodyGuard = await createSecurityPipeline([
+    sanitizePlugin(() => ({
+      title:   parsed.title,
+      content: parsed.content,
+      summary: parsed.summary,
+    })),
+    captchaPlugin("post", () => parsed.captchaToken, () => parsed.captchaAnswer),
+  ]).run(ctx);
+  if (bodyGuard) return bodyGuard;
+
+  // ── Business logic ─────────────────────────────────────────────────────────
+  try {
     const post = await prisma.post.create({
       data: {
-        title,
-        content,
-        summary,
-        authorId: session.user.id,
-        categoryId,
-        tags: tags && tags.length > 0 ? {
-          create: await Promise.all(
-            tags.map(async (tagName) => {
-              const tag = await prisma.tag.upsert({
-                where: { name: tagName },
-                update: {},
-                create: { name: tagName },
-              });
-              return { tagId: tag.id };
-            })
-          ),
-        } : undefined,
+        title:      parsed.title,
+        content:    parsed.content,
+        summary:    parsed.summary,
+        authorId:   ctx.session!.user!.id,
+        categoryId: parsed.categoryId,
+        tags:
+          parsed.tags && parsed.tags.length > 0
+            ? {
+                create: await Promise.all(
+                  parsed.tags.map(async (tagName) => {
+                    const tag = await prisma.tag.upsert({
+                      where:  { name: tagName },
+                      update: {},
+                      create: { name: tagName },
+                    });
+                    return { tagId: tag.id };
+                  }),
+                ),
+              }
+            : undefined,
       },
     });
 
     return NextResponse.json(post, { status: 201 });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
-    }
     console.error("Create post error:", error);
     return NextResponse.json({ error: "发帖失败，请稍后重试" }, { status: 500 });
   }

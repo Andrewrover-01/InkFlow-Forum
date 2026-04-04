@@ -22,6 +22,10 @@ import {
   BlacklistType,
 } from "@/lib/blacklist";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import {
+  logBlocked,
+  logRateLimited,
+} from "@/lib/security-logger";
 
 export interface AbuseGateOptions {
   /** Rate-limit action key (e.g. "post", "reply", "like") */
@@ -41,6 +45,7 @@ export async function abuseGate(
 
   // ── 1. IP blacklist check ──────────────────────────────────────────────────
   if (ip !== "unknown" && (await isBlacklisted(BlacklistType.IP, ip))) {
+    logBlocked(req.nextUrl.pathname, "ip", ip, { ip });
     return NextResponse.json(
       { error: "您的访问已被限制，请联系管理员" },
       { status: 403 },
@@ -49,6 +54,7 @@ export async function abuseGate(
 
   // ── 2. Fingerprint blacklist check ─────────────────────────────────────────
   if (fp && (await isBlacklisted(BlacklistType.FINGERPRINT, fp))) {
+    logBlocked(req.nextUrl.pathname, "fingerprint", fp, { ip, fingerprint: fp });
     return NextResponse.json(
       { error: "您的访问已被限制，请联系管理员" },
       { status: 403 },
@@ -57,6 +63,7 @@ export async function abuseGate(
 
   // ── 3. User blacklist check ────────────────────────────────────────────────
   if (userId && (await isBlacklisted(BlacklistType.USER_ID, userId))) {
+    logBlocked(req.nextUrl.pathname, "user", userId, { ip, userId });
     return NextResponse.json(
       { error: "您的账号已被限制，请联系管理员" },
       { status: 403 },
@@ -82,6 +89,11 @@ export async function abuseGate(
     if (ip !== "unknown") {
       await recordViolation(BlacklistType.IP, ip);
     }
+    if (fp) {
+      await recordViolation(BlacklistType.FINGERPRINT, fp);
+    }
+
+    logRateLimited(req.nextUrl.pathname, action, { ip, userId });
 
     return NextResponse.json(
       { error: "操作太频繁，请稍后再试" },

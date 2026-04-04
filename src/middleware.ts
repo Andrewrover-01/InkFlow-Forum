@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { isBlacklisted, getClientIp, getFingerprint, BlacklistType } from "@/lib/blacklist";
+import { logBlocked } from "@/lib/security-logger";
 
 // Use Node.js runtime so we can access Prisma (TCP connections) in middleware
 export const runtime = "nodejs";
@@ -20,6 +21,7 @@ export async function middleware(req: NextRequest) {
     const fp = getFingerprint(req.headers);
 
     if (ip !== "unknown" && (await isBlacklisted(BlacklistType.IP, ip))) {
+      logBlocked(pathname, "ip", ip, { ip });
       return NextResponse.json(
         { error: "您的访问已被限制，请联系管理员" },
         { status: 403 },
@@ -27,6 +29,7 @@ export async function middleware(req: NextRequest) {
     }
 
     if (fp && (await isBlacklisted(BlacklistType.FINGERPRINT, fp))) {
+      logBlocked(pathname, "fingerprint", fp, { ip, fingerprint: fp });
       return NextResponse.json(
         { error: "您的访问已被限制，请联系管理员" },
         { status: 403 },
