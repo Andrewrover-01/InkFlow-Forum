@@ -30,9 +30,9 @@ export async function GET(req: NextRequest) {
     const fp = getFingerprint(req);
 
     const checks = [
-      ip !== "unknown" ? getBlacklistLevel(ip, "IP" as BlacklistType) : Promise.resolve(null),
-      session?.user?.id ? getBlacklistLevel(session.user.id, "USER_ID" as BlacklistType) : Promise.resolve(null),
-      fp ? getBlacklistLevel(fp, "FINGERPRINT" as BlacklistType) : Promise.resolve(null),
+      ip !== "unknown" ? getBlacklistLevel(ip, BlacklistType.IP) : Promise.resolve(null),
+      session?.user?.id ? getBlacklistLevel(session.user.id, BlacklistType.USER_ID) : Promise.resolve(null),
+      fp ? getBlacklistLevel(fp, BlacklistType.FINGERPRINT) : Promise.resolve(null),
     ];
     const levels = await Promise.all(checks);
     graylisted = levels.some((l) => l === "GRAY");

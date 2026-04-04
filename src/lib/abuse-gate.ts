@@ -59,7 +59,7 @@ export async function checkAbuse({
   const fp = getFingerprint(req);
 
   // 1. IP blacklist
-  if (ip !== "unknown" && (await isBlocked(ip, "IP" as BlacklistType))) {
+  if (ip !== "unknown" && (await isBlocked(ip, BlacklistType.IP))) {
     return {
       blocked: true,
       reason: "ip_blocked",
@@ -68,7 +68,7 @@ export async function checkAbuse({
   }
 
   // 2. User blacklist
-  if (userId && (await isBlocked(userId, "USER_ID" as BlacklistType))) {
+  if (userId && (await isBlocked(userId, BlacklistType.USER_ID))) {
     return {
       blocked: true,
       reason: "user_blocked",
@@ -77,7 +77,7 @@ export async function checkAbuse({
   }
 
   // 3. Device fingerprint blacklist
-  if (fp && (await isBlocked(fp, "FINGERPRINT" as BlacklistType))) {
+  if (fp && (await isBlocked(fp, BlacklistType.FINGERPRINT))) {
     return {
       blocked: true,
       reason: "fp_blocked",
@@ -94,13 +94,13 @@ export async function checkAbuse({
     if (result.violations >= VIOLATION_GRAYLIST_THRESHOLD) {
       const reason = `rate_limit_abuse:${action}`;
       if (userId) {
-        await autoGraylist(userId, "USER_ID" as BlacklistType, reason);
+        await autoGraylist(userId, BlacklistType.USER_ID, reason);
       }
       if (ip !== "unknown") {
-        await autoGraylist(ip, "IP" as BlacklistType, reason);
+        await autoGraylist(ip, BlacklistType.IP, reason);
       }
       if (fp) {
-        await autoGraylist(fp, "FINGERPRINT" as BlacklistType, reason);
+        await autoGraylist(fp, BlacklistType.FINGERPRINT, reason);
       }
     }
 

@@ -14,12 +14,20 @@ export function CommentForm({ replyId, parentId, onSuccess }: CommentFormProps) 
   const router = useRouter();
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!content.trim() || !captchaToken) return;
+    if (!content.trim()) return;
+
+    if (!captchaToken) {
+      setError("请先完成人机验证");
+      return;
+    }
+
     setLoading(true);
+    setError("");
 
     try {
       const res = await fetch("/api/comments", {
@@ -58,6 +66,9 @@ export function CommentForm({ replyId, parentId, onSuccess }: CommentFormProps) 
           {loading ? "..." : "评论"}
         </button>
       </form>
+      {error && (
+        <p className="text-xs text-cinnabar-600 font-sans">{error}</p>
+      )}
       <CaptchaWidget
         action="comment"
         onVerify={setCaptchaToken}
