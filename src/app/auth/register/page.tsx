@@ -4,14 +4,26 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
+import { CaptchaWidget } from "@/components/captcha-widget";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaAnswer, setCaptchaAnswer] = useState<number | undefined>();
+
+  function handleCaptchaToken(token: string, answer?: number) {
+    setCaptchaToken(token);
+    setCaptchaAnswer(answer);
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!captchaToken) {
+      setError("请先完成安全验证");
+      return;
+    }
     setError("");
     setLoading(true);
 
@@ -31,7 +43,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, captchaToken, captchaAnswer }),
       });
 
       const data = await res.json();
@@ -113,6 +125,9 @@ export default function RegisterPage() {
             />
           </div>
 
+          {/* CAPTCHA (slider for registration) */}
+          <CaptchaWidget action="register" onToken={handleCaptchaToken} />
+
           {error && (
             <p className="text-sm text-cinnabar-600 font-sans bg-cinnabar-50 border border-cinnabar-200 rounded-sm px-3 py-2">
               {error}
@@ -121,7 +136,7 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !captchaToken}
             className="w-full btn-primary py-2.5 disabled:opacity-50"
           >
             {loading ? "注册中..." : "注册"}

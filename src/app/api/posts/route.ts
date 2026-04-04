@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { abuseGate } from "@/lib/abuse-gate";
+import { verifyCaptchaToken } from "@/lib/captcha";
 
 const createPostSchema = z.object({
   title: z.string().min(4, "标题至少4个字符").max(100, "标题最多100个字符"),
@@ -11,6 +12,8 @@ const createPostSchema = z.object({
   summary: z.string().max(200).optional(),
   categoryId: z.string().min(1, "请选择版块"),
   tags: z.array(z.string()).optional(),
+  captchaToken: z.string().optional(),
+  captchaAnswer: z.number().optional(),
 });
 
 // GET /api/posts?page=1&limit=20 — paginated post list (admin-friendly)
@@ -52,7 +55,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title, content, summary, categoryId, tags } = createPostSchema.parse(body);
+    const { title, content, summary, categoryId, tags, captchaToken, captchaAnswer } = createPostSchema.parse(body);
+
+    // CAPTCHA verification
+    const captcha = verifyCaptchaToken(captchaToken, "post", captchaAnswer);
+    if (!captcha.valid) {
+      return NextResponse.json({ error: captcha.error }, { status: 400 });
+    }
 
     const post = await prisma.post.create({
       data: {

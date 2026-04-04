@@ -4,10 +4,13 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { abuseGate } from "@/lib/abuse-gate";
+import { verifyCaptchaToken } from "@/lib/captcha";
 
 const replySchema = z.object({
   postId: z.string().min(1),
   content: z.string().min(1).max(2000),
+  captchaToken: z.string().optional(),
+  captchaAnswer: z.number().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -21,7 +24,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { postId, content } = replySchema.parse(body);
+    const { postId, content, captchaToken, captchaAnswer } = replySchema.parse(body);
+
+    // CAPTCHA verification
+    const captcha = verifyCaptchaToken(captchaToken, "reply", captchaAnswer);
+    if (!captcha.valid) {
+      return NextResponse.json({ error: captcha.error }, { status: 400 });
+    }
 
     const post = await prisma.post.findUnique({
       where: { id: postId, status: { not: "DELETED" } },

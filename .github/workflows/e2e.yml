@@ -28,6 +28,10 @@ jobs:
       R2_SECRET_ACCESS_KEY: ""
       R2_BUCKET: ""
       R2_PUBLIC_URL: ""
+      # CAPTCHA bypass — lets the CaptchaWidget auto-resolve and the API accept
+      # the token without signature verification during CI/E2E runs.
+      CAPTCHA_BYPASS_TOKEN: "e2e-ci-captcha-bypass"
+      NEXT_PUBLIC_CAPTCHA_BYPASS_TOKEN: "e2e-ci-captcha-bypass"
       # Playwright
       PLAYWRIGHT_BASE_URL: "http://localhost:3000"
 

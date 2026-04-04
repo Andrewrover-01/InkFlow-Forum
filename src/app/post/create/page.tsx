@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { PenLine } from "lucide-react";
+import { CaptchaWidget } from "@/components/captcha-widget";
 
 interface Category {
   id: string;
@@ -17,6 +18,8 @@ export default function CreatePostPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaAnswer, setCaptchaAnswer] = useState<number | undefined>();
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -33,6 +36,10 @@ export default function CreatePostPage() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!captchaToken) {
+      setError("请先完成安全验证");
+      return;
+    }
     setError("");
     setLoading(true);
 
@@ -51,6 +58,8 @@ export default function CreatePostPage() {
             .split(",")
             .map((t) => t.trim())
             .filter(Boolean),
+          captchaToken,
+          captchaAnswer,
         }),
       });
 
@@ -152,6 +161,12 @@ export default function CreatePostPage() {
             />
           </div>
 
+          {/* CAPTCHA (auto mode: invisible for normal users, slider for graylisted) */}
+          <CaptchaWidget
+            action="post"
+            onToken={(token, answer) => { setCaptchaToken(token); setCaptchaAnswer(answer); }}
+          />
+
           {error && (
             <p className="text-sm text-cinnabar-600 font-sans bg-cinnabar-50 border border-cinnabar-200 rounded-sm px-3 py-2">
               {error}
@@ -168,7 +183,7 @@ export default function CreatePostPage() {
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !captchaToken}
               className="btn-primary flex items-center gap-1.5 disabled:opacity-50"
             >
               <PenLine className="w-3.5 h-3.5" />
