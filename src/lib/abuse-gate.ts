@@ -21,6 +21,7 @@ import {
 } from "./rate-limit";
 import { isBlocked, autoGraylist } from "./blacklist";
 import { BlacklistType } from "@prisma/client";
+import { logSecurityEvent } from "./security-logger";
 
 export function getClientIp(req: NextRequest): string {
   return (
@@ -60,6 +61,7 @@ export async function checkAbuse({
 
   // 1. IP blacklist
   if (ip !== "unknown" && (await isBlocked(ip, BlacklistType.IP))) {
+    logSecurityEvent({ event: "ip_blocked", action, ip, userId });
     return {
       blocked: true,
       reason: "ip_blocked",
@@ -69,6 +71,7 @@ export async function checkAbuse({
 
   // 2. User blacklist
   if (userId && (await isBlocked(userId, BlacklistType.USER_ID))) {
+    logSecurityEvent({ event: "user_blocked", action, ip, userId });
     return {
       blocked: true,
       reason: "user_blocked",
@@ -78,6 +81,7 @@ export async function checkAbuse({
 
   // 3. Device fingerprint blacklist
   if (fp && (await isBlocked(fp, BlacklistType.FINGERPRINT))) {
+    logSecurityEvent({ event: "fp_blocked", action, ip, userId, fp });
     return {
       blocked: true,
       reason: "fp_blocked",
@@ -95,6 +99,7 @@ export async function checkAbuse({
       const reason = `rate_limit_abuse:${action}`;
       if (userId) {
         await autoGraylist(userId, BlacklistType.USER_ID, reason);
+        logSecurityEvent({ event: "auto_graylisted", action, ip, userId, reason });
       }
       if (ip !== "unknown") {
         await autoGraylist(ip, BlacklistType.IP, reason);
@@ -108,6 +113,7 @@ export async function checkAbuse({
       1,
       Math.ceil((result.resetAt - Date.now()) / 1000)
     );
+    logSecurityEvent({ event: "rate_limited", action, ip, userId, reason: `violations:${result.violations}` });
     return {
       blocked: true,
       reason: "rate_limited",

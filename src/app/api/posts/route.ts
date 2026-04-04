@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { checkAbuse } from "@/lib/abuse-gate";
-import { verifyCaptchaToken } from "@/lib/captcha";
+import {
+  SecurityPipeline,
+  requireAuthPlugin,
+  abuseGatePlugin,
+  sanitizePlugin,
+  captchaPlugin,
+} from "@/lib/api-security";
 
 const createPostSchema = z.object({
   title: z.string().min(4, "标题至少4个字符").max(100, "标题最多100个字符"),
@@ -12,8 +15,13 @@ const createPostSchema = z.object({
   summary: z.string().max(200).optional(),
   categoryId: z.string().min(1, "请选择版块"),
   tags: z.array(z.string()).optional(),
-  captchaToken: z.string().optional(),
 });
+
+const pipeline = new SecurityPipeline()
+  .use(requireAuthPlugin())
+  .use(abuseGatePlugin("post"))
+  .use(sanitizePlugin())
+  .use(captchaPlugin("post"));
 
 // GET /api/posts?page=1&limit=20 — paginated post list (admin-friendly)
 export async function GET(req: NextRequest) {
@@ -44,23 +52,13 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "请先登录" }, { status: 401 });
-  }
+  const { blocked, response, ctx } = await pipeline.run(req);
+  if (blocked) return response!;
 
-  const gate = await checkAbuse({ action: "post", userId: session.user.id, req });
-  if (gate.blocked) return gate.response!;
+  const session = ctx.session!;
 
   try {
-    const body = await req.json();
-    const { title, content, summary, categoryId, tags, captchaToken } = createPostSchema.parse(body);
-
-    // Verify CAPTCHA
-    const captcha = verifyCaptchaToken(captchaToken, "post");
-    if (!captcha.valid) {
-      return NextResponse.json({ error: "人机验证失败，请重试" }, { status: 400 });
-    }
+    const { title, content, summary, categoryId, tags } = createPostSchema.parse(ctx.body);
 
     const post = await prisma.post.create({
       data: {

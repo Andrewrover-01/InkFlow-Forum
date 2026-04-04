@@ -1,36 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { checkAbuse } from "@/lib/abuse-gate";
-import { verifyCaptchaToken } from "@/lib/captcha";
+import {
+  SecurityPipeline,
+  requireAuthPlugin,
+  abuseGatePlugin,
+  sanitizePlugin,
+  captchaPlugin,
+} from "@/lib/api-security";
 
 const commentSchema = z.object({
   replyId: z.string().min(1),
   content: z.string().min(1).max(500),
   parentId: z.string().optional(),
-  captchaToken: z.string().optional(),
 });
 
-export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "请先登录" }, { status: 401 });
-  }
+const pipeline = new SecurityPipeline()
+  .use(requireAuthPlugin())
+  .use(abuseGatePlugin("comment"))
+  .use(sanitizePlugin())
+  .use(captchaPlugin("comment"));
 
-  const gate = await checkAbuse({ action: "comment", userId: session.user.id, req });
-  if (gate.blocked) return gate.response!;
+export async function POST(req: NextRequest) {
+  const { blocked, response, ctx } = await pipeline.run(req);
+  if (blocked) return response!;
+
+  const session = ctx.session!;
 
   try {
-    const body = await req.json();
-    const { replyId, content, parentId, captchaToken } = commentSchema.parse(body);
-
-    // Verify CAPTCHA
-    const captcha = verifyCaptchaToken(captchaToken, "comment");
-    if (!captcha.valid) {
-      return NextResponse.json({ error: "人机验证失败，请重试" }, { status: 400 });
-    }
+    const { replyId, content, parentId } = commentSchema.parse(ctx.body);
 
     const comment = await prisma.comment.create({
       data: {

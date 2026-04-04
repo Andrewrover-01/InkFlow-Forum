@@ -1,35 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { checkAbuse } from "@/lib/abuse-gate";
-import { verifyCaptchaToken } from "@/lib/captcha";
+import {
+  SecurityPipeline,
+  requireAuthPlugin,
+  abuseGatePlugin,
+  sanitizePlugin,
+  captchaPlugin,
+} from "@/lib/api-security";
 
 const replySchema = z.object({
   postId: z.string().min(1),
   content: z.string().min(1).max(2000),
-  captchaToken: z.string().optional(),
 });
 
-export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "请先登录" }, { status: 401 });
-  }
+const pipeline = new SecurityPipeline()
+  .use(requireAuthPlugin())
+  .use(abuseGatePlugin("reply"))
+  .use(sanitizePlugin())
+  .use(captchaPlugin("reply"));
 
-  const gate = await checkAbuse({ action: "reply", userId: session.user.id, req });
-  if (gate.blocked) return gate.response!;
+export async function POST(req: NextRequest) {
+  const { blocked, response, ctx } = await pipeline.run(req);
+  if (blocked) return response!;
+
+  const session = ctx.session!;
 
   try {
-    const body = await req.json();
-    const { postId, content, captchaToken } = replySchema.parse(body);
-
-    // Verify CAPTCHA
-    const captcha = verifyCaptchaToken(captchaToken, "reply");
-    if (!captcha.valid) {
-      return NextResponse.json({ error: "人机验证失败，请重试" }, { status: 400 });
-    }
+    const { postId, content } = replySchema.parse(ctx.body);
 
     const post = await prisma.post.findUnique({
       where: { id: postId, status: { not: "DELETED" } },
