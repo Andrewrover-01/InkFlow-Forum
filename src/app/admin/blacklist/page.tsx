@@ -110,7 +110,7 @@ export default function AdminBlacklistPage() {
         value: form.value.trim(),
         level: form.level,
         reason: form.reason.trim() || undefined,
-        expiresAt: form.expiresAt || null,
+        expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : null,
       };
       const res = await fetch("/api/admin/blacklist", {
         method: "POST",
@@ -228,7 +228,7 @@ export default function AdminBlacklistPage() {
               <input
                 type="datetime-local"
                 value={form.expiresAt}
-                onChange={(e) => setForm((f) => ({ ...f, expiresAt: e.target.value ? new Date(e.target.value).toISOString() : "" }))}
+                onChange={(e) => setForm((f) => ({ ...f, expiresAt: e.target.value }))}
                 className="w-full border border-parchment-300 rounded-lg px-3 py-2 text-sm"
               />
             </div>
