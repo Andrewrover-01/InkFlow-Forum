@@ -10,17 +10,21 @@ import {
   FolderOpen,
   MessageSquare,
   LayoutDashboard,
+  ShieldCheck,
+  Flag,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 async function getStats() {
-  const [userCount, postCount, categoryCount, replyCount, latestPosts] =
+  const [userCount, postCount, categoryCount, replyCount, pendingModerationCount, pendingReportCount, latestPosts] =
     await Promise.all([
       prisma.user.count(),
       prisma.post.count({ where: { status: { not: "DELETED" } } }),
       prisma.category.count(),
       prisma.reply.count(),
+      prisma.moderationRecord.count({ where: { status: "PENDING" } }),
+      prisma.report.count({ where: { status: "PENDING" } }),
       prisma.post.findMany({
         where: { status: { not: "DELETED" } },
         orderBy: { createdAt: "desc" },
@@ -32,7 +36,7 @@ async function getStats() {
         },
       }),
     ]);
-  return { userCount, postCount, categoryCount, replyCount, latestPosts };
+  return { userCount, postCount, categoryCount, replyCount, pendingModerationCount, pendingReportCount, latestPosts };
 }
 
 export default async function AdminPage() {
@@ -41,7 +45,7 @@ export default async function AdminPage() {
     redirect("/");
   }
 
-  const { userCount, postCount, categoryCount, replyCount, latestPosts } =
+  const { userCount, postCount, categoryCount, replyCount, pendingModerationCount, pendingReportCount, latestPosts } =
     await getStats();
 
   const statCards = [
@@ -49,6 +53,8 @@ export default async function AdminPage() {
     { icon: FileText, label: "发布帖子", value: postCount, href: "/admin/posts" },
     { icon: FolderOpen, label: "版块分类", value: categoryCount, href: "/admin/categories" },
     { icon: MessageSquare, label: "回复总数", value: replyCount, href: "/admin/posts" },
+    { icon: ShieldCheck, label: "待审内容", value: pendingModerationCount, href: "/admin/moderation" },
+    { icon: Flag, label: "待处举报", value: pendingReportCount, href: "/admin/reports" },
   ];
 
   return (
@@ -60,7 +66,7 @@ export default async function AdminPage() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {statCards.map(({ icon: Icon, label, value, href }) => (
           <Link key={label} href={href}>
             <div className="card p-5 hover:shadow-md transition-shadow text-center">
@@ -79,6 +85,8 @@ export default async function AdminPage() {
           { href: "/admin/posts", label: "帖子管理", desc: "置顶、锁定、删除帖子" },
           { href: "/admin/categories", label: "版块管理", desc: "创建/编辑/删除版块" },
           { href: "/admin/blacklist", label: "黑灰名单", desc: "管理封禁IP、用户、设备指纹" },
+          { href: "/admin/moderation", label: "内容审核", desc: "机器+人工审核帖子、回复、评论" },
+          { href: "/admin/reports", label: "用户举报", desc: "处理用户举报的违规内容" },
         ].map(({ href, label, desc }) => (
           <Link key={href} href={href}>
             <div className="card p-4 hover:shadow-md transition-shadow">

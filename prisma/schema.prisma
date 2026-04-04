@@ -34,6 +34,32 @@ enum NotificationType {
   LIKE
 }
 
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ContentType {
+  POST
+  REPLY
+  COMMENT
+}
+
+enum ReportReason {
+  SPAM
+  SENSITIVE
+  ILLEGAL
+  PORN
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
 // ================================
 // User Model
 // ================================
@@ -63,6 +89,11 @@ model User {
   // Notification relations
   notifications     Notification[] @relation("notifications")
   sentNotifications Notification[] @relation("sentNotifications")
+
+  // Moderation relations
+  moderationReviews ModerationRecord[]
+  reports           Report[]           @relation("reports")
+  reportReviews     Report[]           @relation("reportReviews")
 
   @@index([email])
   @@map("users")
@@ -148,6 +179,7 @@ model Post {
   content    String     @db.Text
   summary    String?
   status     PostStatus @default(PUBLISHED)
+  moderationStatus ModerationStatus @default(PENDING)
   viewCount  Int        @default(0)
   isPinned   Boolean    @default(false)
   isLocked   Boolean    @default(false)
@@ -175,6 +207,7 @@ model Reply {
   id        String   @id @default(cuid())
   content   String   @db.Text
   floor     Int      // 楼层号
+  moderationStatus ModerationStatus @default(PENDING)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -196,6 +229,7 @@ model Reply {
 model Comment {
   id        String   @id @default(cuid())
   content   String   @db.Text
+  moderationStatus ModerationStatus @default(PENDING)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -299,4 +333,48 @@ model Notification {
   @@index([userId, isRead])
   @@index([userId, createdAt(sort: Desc)])
   @@map("notifications")
+}
+
+// ================================
+// Content Moderation Models
+// ================================
+
+model ModerationRecord {
+  id            String           @id @default(cuid())
+  contentType   ContentType
+  contentId     String
+  status        ModerationStatus @default(PENDING)
+  autoFlags     String[]         // flags from machine review
+  machineScore  Int              @default(0) // 0–100 risk score
+  reviewerId    String?
+  reviewNote    String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  reviewer User? @relation(fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([contentType, contentId])
+  @@index([status, createdAt(sort: Desc)])
+  @@map("moderation_records")
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  reporterId  String
+  contentType ContentType
+  contentId   String
+  reason      ReportReason
+  description String?
+  status      ReportStatus @default(PENDING)
+  reviewerId  String?
+  reviewNote  String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  reporter User  @relation("reports", fields: [reporterId], references: [id], onDelete: Cascade)
+  reviewer User? @relation("reportReviews", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([contentType, contentId])
+  @@index([status, createdAt(sort: Desc)])
+  @@map("reports")
 }

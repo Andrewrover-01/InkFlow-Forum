@@ -8,6 +8,8 @@ import {
   sanitizePlugin,
   captchaPlugin,
 } from "@/lib/api-security";
+import { moderateContent } from "@/lib/content-moderator";
+import { ContentType } from "@prisma/client";
 
 const commentSchema = z.object({
   replyId: z.string().min(1),
@@ -38,6 +40,9 @@ export async function POST(req: NextRequest) {
         authorId: session.user.id,
       },
     });
+
+    // Machine moderation — fire and forget
+    moderateContent(ContentType.COMMENT, comment.id, content).catch(() => {});
 
     return NextResponse.json(comment, { status: 201 });
   } catch (error) {

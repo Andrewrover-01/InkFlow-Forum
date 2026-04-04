@@ -8,6 +8,8 @@ import {
   sanitizePlugin,
   captchaPlugin,
 } from "@/lib/api-security";
+import { moderateContent } from "@/lib/content-moderator";
+import { ContentType } from "@prisma/client";
 
 const createPostSchema = z.object({
   title: z.string().min(4, "标题至少4个字符").max(100, "标题最多100个字符"),
@@ -81,6 +83,11 @@ export async function POST(req: NextRequest) {
         } : undefined,
       },
     });
+
+    // Run machine moderation in the background (must not block the response)
+    moderateContent(ContentType.POST, post.id, `${title} ${content}`).catch(
+      () => {}
+    );
 
     return NextResponse.json(post, { status: 201 });
   } catch (error) {

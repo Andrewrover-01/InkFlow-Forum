@@ -8,6 +8,8 @@ import {
   sanitizePlugin,
   captchaPlugin,
 } from "@/lib/api-security";
+import { moderateContent } from "@/lib/content-moderator";
+import { ContentType } from "@prisma/client";
 
 const replySchema = z.object({
   postId: z.string().min(1),
@@ -74,6 +76,9 @@ export async function POST(req: NextRequest) {
           // Notification failure should not block the reply response
         });
     }
+
+    // Machine moderation — fire and forget
+    moderateContent(ContentType.REPLY, reply.id, content).catch(() => {});
 
     return NextResponse.json(reply, { status: 201 });
   } catch (error) {
