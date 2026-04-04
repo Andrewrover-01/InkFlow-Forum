@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { formatRelativeTime } from "@/lib/utils";
 import { getServerSession } from "next-auth";
@@ -10,6 +11,8 @@ import { ReplyForm } from "@/components/reply-form";
 import { ReplyItem } from "@/components/reply-item";
 import { DeletePostButton } from "@/components/delete-post-button";
 import { LikeButton } from "@/components/like-button";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/blacklist";
 
 export const dynamic = "force-dynamic";
 
@@ -57,11 +60,16 @@ export default async function PostPage({ params }: PostPageProps) {
 
   if (!post) notFound();
 
-  // Increment view count (fire-and-forget)
-  prisma.post.update({
-    where: { id: post.id },
-    data: { viewCount: { increment: 1 } },
-  }).catch(() => {});
+  // Increment view count — rate-limited per IP to prevent view farming
+  const headersList = await headers();
+  const ip = getClientIp(headersList as unknown as Headers);
+  const viewAllowed = checkRateLimit("view", `${ip}:${id}`).allowed;
+  if (viewAllowed) {
+    prisma.post.update({
+      where: { id: post.id },
+      data: { viewCount: { increment: 1 } },
+    }).catch(() => {});
+  }
 
   // Fetch liked reply IDs for the current user
   const likedReplyIds: string[] = session?.user?.id

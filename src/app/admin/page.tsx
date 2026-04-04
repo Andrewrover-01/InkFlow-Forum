@@ -73,11 +73,12 @@ export default async function AdminPage() {
       </div>
 
       {/* Quick links */}
-      <div className="grid md:grid-cols-3 gap-3">
+      <div className="grid md:grid-cols-4 gap-3">
         {[
           { href: "/admin/users", label: "用户管理", desc: "查看/搜索用户，修改角色" },
           { href: "/admin/posts", label: "帖子管理", desc: "置顶、锁定、删除帖子" },
           { href: "/admin/categories", label: "版块管理", desc: "创建/编辑/删除版块" },
+          { href: "/admin/blacklist", label: "黑灰名单", desc: "管理封禁 IP、设备指纹、账号" },
         ].map(({ href, label, desc }) => (
           <Link key={href} href={href}>
             <div className="card p-4 hover:shadow-md transition-shadow">

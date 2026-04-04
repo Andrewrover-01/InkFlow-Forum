@@ -3,6 +3,7 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Navbar } from "@/components/navbar";
 import { HotNovelsSidebar } from "@/components/hot-novels-sidebar";
+import { FingerprintProvider } from "@/components/fingerprint-provider";
 
 export const metadata: Metadata = {
   title: {
@@ -22,6 +23,7 @@ export default function RootLayout({
     <html lang="zh-CN">
       <body>
         <Providers>
+          <FingerprintProvider />
           <div className="min-h-screen flex flex-col">
             <Navbar />
             <div className="flex-1 container mx-auto px-4 py-6 max-w-6xl">

@@ -250,6 +250,36 @@ model HotNovel {
   @@map("hot_novels")
 }
 
+// ================================
+// Anti-Abuse: Blacklist / Graylist
+// ================================
+
+enum BlacklistType {
+  IP
+  FINGERPRINT
+  USER_ID
+}
+
+enum BlacklistLevel {
+  GRAY  // reduced rate-limit quotas
+  BLACK // fully blocked
+}
+
+model BlacklistEntry {
+  id        String         @id @default(cuid())
+  type      BlacklistType
+  value     String         // IP address, fingerprint hash, or user ID
+  level     BlacklistLevel @default(BLACK)
+  reason    String?
+  expiresAt DateTime?
+  createdAt DateTime       @default(now())
+  createdBy String?        // admin user ID who created this entry
+
+  @@unique([type, value])
+  @@index([type, value])
+  @@map("blacklist_entries")
+}
+
 // In-app notifications
 model Notification {
   id         String           @id @default(cuid())
