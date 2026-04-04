@@ -19,7 +19,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { ContentType, ModerationStatus } from "@prisma/client";
-import { scanText, type ScanResult } from "@/lib/word-filter";
+import { scanText, normalise, type ScanResult } from "@/lib/word-filter";
 
 // ─── Keyword lists ───────────────────────────────────────────────────────────
 // Categorised sets of patterns. Kept minimal for demonstration; extend via DB
@@ -93,13 +93,8 @@ export async function moderateText(text: string): Promise<ModerationTextResult> 
     flagSet.add(cat);
   }
 
-  // Also run the legacy keyword map for any words not in the Trie
-  const normalised = text
-    .toLowerCase()
-    .replace(/[\uFF01-\uFF5E]/g, (c) =>
-      String.fromCharCode(c.charCodeAt(0) - 0xfee0)
-    )
-    .replace(/[\s\u200b\u3000*_\-\.]+/g, "");
+  // Also run the legacy keyword map using the shared normaliser
+  const normalised = normalise(text);
 
   for (const [keyword, category] of KEYWORD_MAP) {
     if (normalised.includes(keyword) || text.includes(keyword)) {

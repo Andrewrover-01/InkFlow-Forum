@@ -162,7 +162,8 @@ const HOMOGLYPHS: Record<string, string> = {
 /** Regex for evasion separators (zero-width chars, common punctuation used to split words). */
 const SEPARATOR_RE = /[\s\u200b\u200c\u200d\u3000\u00a0*_\-\.~·•,，。！!?？]+/g;
 
-function normalise(text: string): string {
+/** Normalise text for sensitive-word comparison. Exported for reuse. */
+export function normalise(text: string): string {
   return text
     .toLowerCase()
     // fullwidth ASCII → half-width (！ → !, ０ → 0, Ａ → a, etc.)
@@ -193,8 +194,9 @@ function buildNormToOrigMap(original: string): number[] {
     // homoglyph
     ch = HOMOGLYPHS[ch] ?? ch;
     // skip separators
+    SEPARATOR_RE.lastIndex = 0; // reset before test to avoid stale lastIndex
     if (SEPARATOR_RE.test(ch)) {
-      SEPARATOR_RE.lastIndex = 0; // reset stateful regex
+      SEPARATOR_RE.lastIndex = 0;
       continue;
     }
     SEPARATOR_RE.lastIndex = 0;

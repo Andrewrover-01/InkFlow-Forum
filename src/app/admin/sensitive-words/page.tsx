@@ -83,8 +83,7 @@ export default function AdminSensitiveWordsPage() {
 
   useEffect(() => {
     fetchWords(query, categoryFilter, page);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchWords, categoryFilter, page]);
+  }, [fetchWords, query, categoryFilter, page]);
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
