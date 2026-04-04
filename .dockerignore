@@ -1,0 +1,28 @@
+# Git
+.git
+.gitignore
+
+# Node / Next.js
+node_modules
+.next
+out
+
+# Environment secrets
+.env
+.env*.local
+
+# Tests / docs
+e2e
+coverage
+*.md
+PLAN.md
+LICENSE
+
+# Docker files (not needed inside container)
+docker-compose.yml
+Dockerfile
+nginx/
+
+# Misc
+.DS_Store
+.vercel

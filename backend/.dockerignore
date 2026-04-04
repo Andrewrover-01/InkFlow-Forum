@@ -1,0 +1,15 @@
+# Git
+.git
+
+# Build output
+target/
+
+# IDE
+.idea/
+*.iml
+
+# Environment
+.env
+
+# Uploaded files (runtime data)
+uploads/
