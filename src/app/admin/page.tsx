@@ -87,6 +87,7 @@ export default async function AdminPage() {
           { href: "/admin/blacklist", label: "黑灰名单", desc: "管理封禁IP、用户、设备指纹" },
           { href: "/admin/moderation", label: "内容审核", desc: "机器+人工审核帖子、回复、评论" },
           { href: "/admin/reports", label: "用户举报", desc: "处理用户举报的违规内容" },
+          { href: "/admin/sensitive-words", label: "敏感词管理", desc: "维护基础、小说专属、自定义词库" },
         ].map(({ href, label, desc }) => (
           <Link key={href} href={href}>
             <div className="card p-4 hover:shadow-md transition-shadow">

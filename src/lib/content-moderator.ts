@@ -19,6 +19,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { ContentType, ModerationStatus } from "@prisma/client";
+import { scanText, type ScanResult } from "@/lib/word-filter";
 
 // ─── Keyword lists ───────────────────────────────────────────────────────────
 // Categorised sets of patterns. Kept minimal for demonstration; extend via DB
@@ -73,19 +74,32 @@ export interface ModerationTextResult {
 
 /**
  * Screen `text` for policy violations.
- * Checks both the original text and a normalised variant (fullwidth → ASCII).
+ * Uses the Trie/DFA word filter (built-in + DB custom words).
  */
-export function moderateText(text: string): ModerationTextResult {
+export async function moderateText(text: string): Promise<ModerationTextResult> {
+  // Run Trie/DFA scan (includes DB custom words + built-in lists)
+  let scanResult: ScanResult = { matched: false, words: [] };
+  try {
+    scanResult = await scanText(text);
+  } catch {
+    // Fall back to keyword map if word-filter is unavailable
+  }
+
+  const flagSet = new Set<string>();
+
+  // Map word-filter hits to known categories (best-effort; default → "sensitive")
+  for (const word of scanResult.words) {
+    const cat = KEYWORD_MAP.get(word) ?? inferCategory(word);
+    flagSet.add(cat);
+  }
+
+  // Also run the legacy keyword map for any words not in the Trie
   const normalised = text
     .toLowerCase()
-    // fullwidth digits/letters → ASCII
     .replace(/[\uFF01-\uFF5E]/g, (c) =>
       String.fromCharCode(c.charCodeAt(0) - 0xfee0)
     )
-    // strip common evasion separators
     .replace(/[\s\u200b\u3000*_\-\.]+/g, "");
-
-  const flagSet = new Set<string>();
 
   for (const [keyword, category] of KEYWORD_MAP) {
     if (normalised.includes(keyword) || text.includes(keyword)) {
@@ -105,6 +119,16 @@ export function moderateText(text: string): ModerationTextResult {
   else action = "approve";
 
   return { score, flags, action };
+}
+
+/** Infer a broad category for a word not in the legacy keyword map. */
+function inferCategory(word: string): string {
+  // Very rough heuristic — a real production system would tag words in DB
+  const pornHint = ["色", "淫", "黄", "H文", "肉", "性", "裸", "AV", "援交"];
+  const illegalHint = ["毒", "枪", "炸", "贩", "诈"];
+  if (pornHint.some((h) => word.includes(h))) return "porn";
+  if (illegalHint.some((h) => word.includes(h))) return "illegal";
+  return "sensitive";
 }
 
 // ─── Image moderation stub ────────────────────────────────────────────────────
@@ -151,7 +175,7 @@ export async function moderateContent(
   contentId: string,
   text: string
 ): Promise<ContentModerationResult> {
-  const { score, flags, action } = moderateText(text);
+  const { score, flags, action } = await moderateText(text);
 
   const status: ModerationStatus =
     action === "reject"
