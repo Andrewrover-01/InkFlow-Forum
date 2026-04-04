@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
+import {
+  buildSecurityContext,
+  createSecurityPipeline,
+  authPlugin,
+  abuseGatePlugin,
+} from "@/lib/api-security";
 
 const ALLOWED_MIME = new Set([
   "image/jpeg",
@@ -35,10 +39,14 @@ function getR2Client() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "请先登录" }, { status: 401 });
-  }
+  const ctx = await buildSecurityContext(req);
+
+  // ── Security checks (auth + upload rate limit) ─────────────────────────────
+  const guard = await createSecurityPipeline([
+    authPlugin(),
+    abuseGatePlugin("upload"),
+  ]).run(ctx);
+  if (guard) return guard;
 
   // Check R2 configuration
   const bucket = process.env.R2_BUCKET;
@@ -76,7 +84,7 @@ export async function POST(req: NextRequest) {
   }
 
   const ext = EXT_MAP[file.type] ?? "jpg";
-  const key = `avatars/${session.user.id}/${randomUUID()}.${ext}`;
+  const key = `avatars/${ctx.session!.user!.id}/${randomUUID()}.${ext}`;
 
   const arrayBuffer = await file.arrayBuffer();
 

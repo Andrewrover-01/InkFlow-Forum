@@ -29,6 +29,12 @@ yarn-error.log*
 .env
 .env*.local
 
+# Docker runtime data (do not commit DB volumes or uploaded files)
+backend/uploads/
+
+# Java / Maven
+backend/target/
+
 # vercel
 .vercel
 

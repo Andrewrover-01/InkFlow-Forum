@@ -10,6 +10,7 @@
 - [核心功能](#核心功能)
 - [技术栈](#技术栈)
 - [本地开发环境搭建](#本地开发环境搭建)
+- [Docker 一键部署](#docker-一键部署)
 - [阿里云服务器部署指南](#阿里云服务器部署指南)
 - [运维与维护建议](#运维与维护建议)
 
@@ -149,6 +150,125 @@ npm run dev
 访问 [http://localhost:3000](http://localhost:3000) 即可看到论坛首页。
 
 > 种子数据会生成一个 `admin@inkflow.com` / `Admin123!` 的管理员账号，可直接用于登录管理后台。
+
+---
+
+## Docker 一键部署
+
+> 适合本地快速体验或在任意安装了 Docker 的服务器上一键启动整套环境。  
+> 包含：**MySQL**（Spring Boot 后端）、**PostgreSQL**（Next.js 前端）、**Redis**、**Spring Boot 后端**、**Next.js 前端**、**Nginx 反向代理** 共 6 个服务。
+
+### 前置要求
+
+- [Docker](https://docs.docker.com/get-docker/) ≥ 24
+- [Docker Compose](https://docs.docker.com/compose/install/) v2（`docker compose` 或 `docker-compose`）
+
+### 1. 克隆仓库
+
+```bash
+git clone https://github.com/Andrewrover-01/InkFlow-Forum.git
+cd InkFlow-Forum
+```
+
+### 2. 配置环境变量
+
+```bash
+cp .env.example .env
+```
+
+用任意编辑器打开 `.env`，**至少填写以下必填项**：
+
+```env
+# ── MySQL（Spring Boot 后端）──────────────────────
+MYSQL_PASSWORD=your_mysql_password          # 必填
+MYSQL_ROOT_PASSWORD=your_mysql_root_pwd     # 必填
+
+# ── PostgreSQL（Next.js 前端）────────────────────
+POSTGRES_PASSWORD=your_postgres_password    # 必填
+
+# ── Spring Boot JWT 密钥 ──────────────────────────
+JWT_SECRET=your_jwt_secret                  # 必填，建议 openssl rand -base64 64
+
+# ── NextAuth.js ───────────────────────────────────
+NEXTAUTH_SECRET=your_nextauth_secret        # 必填，建议 openssl rand -base64 32
+NEXTAUTH_URL=http://localhost               # 生产环境改为你的域名
+
+# ── Redis（可选，不设密码留空即可）────────────────
+REDIS_PASSWORD=
+```
+
+> 生成强随机密钥：
+> ```bash
+> openssl rand -base64 32   # NEXTAUTH_SECRET
+> openssl rand -base64 64   # JWT_SECRET
+> ```
+
+### 3. 启动所有服务
+
+```bash
+docker-compose up -d --build
+```
+
+首次启动会拉取镜像并编译代码，约需 3–5 分钟。
+
+### 4. 查看日志
+
+```bash
+# 实时跟踪所有服务
+docker-compose logs -f
+
+# 只看某个服务
+docker-compose logs -f frontend
+docker-compose logs -f backend
+docker-compose logs -f nginx
+```
+
+### 5. 访问地址
+
+| 入口 | 地址 |
+|---|---|
+| 论坛主页（通过 Nginx） | http://localhost |
+| Next.js 前端（直连） | http://localhost:3000 |
+| Spring Boot 后端（直连） | http://localhost:8080 |
+
+### 6. 停止 / 重启
+
+```bash
+# 停止所有容器（保留数据卷）
+docker-compose down
+
+# 停止并清除所有数据（⚠️ 会删除数据库数据）
+docker-compose down -v
+
+# 仅重启某个服务
+docker-compose restart frontend
+```
+
+### 7. 更新部署
+
+```bash
+git pull origin main
+docker-compose up -d --build
+```
+
+### 服务架构总览
+
+```
+外部请求 → Nginx(:80)
+              ├── /api/v1/*   → backend(:8080) ← MySQL + Redis
+              └── /*          → frontend(:3000) ← PostgreSQL
+```
+
+### 数据持久化
+
+所有数据库数据存储在 Docker named volumes 中，`docker-compose down` **不会**删除它们：
+
+| Volume | 内容 |
+|---|---|
+| `postgres_data` | Next.js 论坛数据（用户、帖子、回复…） |
+| `mysql_data` | Spring Boot 后端业务数据 |
+| `redis_data` | 缓存与限流数据 |
+| `uploads_data` | 后端上传文件 |
 
 ---
 

@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import {
+  buildSecurityContext,
+  createSecurityPipeline,
+  authPlugin,
+  abuseGatePlugin,
+  captchaPlugin,
+  sanitizePlugin,
+} from "@/lib/api-security";
+import { moderateContent } from "@/lib/content-moderator";
 
 const createPostSchema = z.object({
   title: z.string().min(4, "标题至少4个字符").max(100, "标题最多100个字符"),
@@ -10,6 +17,8 @@ const createPostSchema = z.object({
   summary: z.string().max(200).optional(),
   categoryId: z.string().min(1, "请选择版块"),
   tags: z.array(z.string()).optional(),
+  captchaToken: z.string().optional(),
+  captchaAnswer: z.number().optional(),
 });
 
 // GET /api/posts?page=1&limit=20 — paginated post list (admin-friendly)
@@ -41,42 +50,109 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "请先登录" }, { status: 401 });
-  }
+  // Build shared security context (resolves session, IP, fingerprint once)
+  const ctx = await buildSecurityContext(req);
 
+  // ── Pre-body security checks (auth + abuse gate) ───────────────────────────
+  const preGuard = await createSecurityPipeline([
+    authPlugin(),
+    abuseGatePlugin("post"),
+  ]).run(ctx);
+  if (preGuard) return preGuard;
+
+  // ── Parse and validate request body ───────────────────────────────────────
+  let parsed: z.infer<typeof createPostSchema>;
   try {
     const body = await req.json();
-    const { title, content, summary, categoryId, tags } = createPostSchema.parse(body);
+    parsed = createPostSchema.parse(body);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: error.issues[0]?.message ?? "Invalid input" },
+        { status: 400 },
+      );
+    }
+    return NextResponse.json({ error: "无效的请求格式" }, { status: 400 });
+  }
 
+  // ── Body-level security checks (sanitize + captcha) ───────────────────────
+  const bodyGuard = await createSecurityPipeline([
+    sanitizePlugin(() => ({
+      title:   parsed.title,
+      content: parsed.content,
+      summary: parsed.summary,
+    })),
+    captchaPlugin("post", () => parsed.captchaToken, () => parsed.captchaAnswer),
+  ]).run(ctx);
+  if (bodyGuard) return bodyGuard;
+
+  // ── Machine content moderation ────────────────────────────────────────────
+  const modResult = await moderateContent({
+    textFields: [parsed.title, parsed.content, parsed.summary ?? ""],
+  });
+
+  if (modResult.status === "REJECTED") {
+    return NextResponse.json(
+      { error: `内容违规，无法发布：${modResult.reason ?? "包含违禁内容"}` },
+      { status: 422 },
+    );
+  }
+
+  // ── Business logic ─────────────────────────────────────────────────────────
+  try {
     const post = await prisma.post.create({
       data: {
-        title,
-        content,
-        summary,
-        authorId: session.user.id,
-        categoryId,
-        tags: tags && tags.length > 0 ? {
-          create: await Promise.all(
-            tags.map(async (tagName) => {
-              const tag = await prisma.tag.upsert({
-                where: { name: tagName },
-                update: {},
-                create: { name: tagName },
-              });
-              return { tagId: tag.id };
-            })
-          ),
-        } : undefined,
+        title:            parsed.title,
+        content:          parsed.content,
+        summary:          parsed.summary,
+        authorId:         ctx.session!.user!.id,
+        categoryId:       parsed.categoryId,
+        moderationStatus: modResult.status, // APPROVED or FLAGGED
+        tags:
+          parsed.tags && parsed.tags.length > 0
+            ? {
+                create: await Promise.all(
+                  parsed.tags.map(async (tagName) => {
+                    const tag = await prisma.tag.upsert({
+                      where:  { name: tagName },
+                      update: {},
+                      create: { name: tagName },
+                    });
+                    return { tagId: tag.id };
+                  }),
+                ),
+              }
+            : undefined,
       },
     });
 
-    return NextResponse.json(post, { status: 201 });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
+    // Persist the moderation audit record (fire-and-forget)
+    if (modResult.status !== "APPROVED") {
+      prisma.moderationRecord
+        .create({
+          data: {
+            targetType: "POST",
+            postId:     post.id,
+            autoStatus: modResult.status,
+            autoReason: modResult.reason,
+            autoScore:  modResult.score,
+            status:     "PENDING",
+          },
+        })
+        .catch(() => {});
     }
+
+    return NextResponse.json(
+      {
+        ...post,
+        ...(modResult.status === "FLAGGED" && {
+          warning: "您的帖子正在审核中，审核通过后将公开显示",
+        }),
+      },
+      { status: 201 },
+    );
+  } catch (error) {
+    // ZodError is caught earlier (line ~68); only database/runtime errors reach here.
     console.error("Create post error:", error);
     return NextResponse.json({ error: "发帖失败，请稍后重试" }, { status: 500 });
   }
