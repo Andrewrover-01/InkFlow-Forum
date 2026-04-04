@@ -9,6 +9,7 @@
 - [项目简介](#项目简介)
 - [核心功能](#核心功能)
 - [技术栈](#技术栈)
+- [Docker 快速部署](#docker-快速部署)
 - [本地开发环境搭建](#本地开发环境搭建)
 - [阿里云服务器部署指南](#阿里云服务器部署指南)
 - [运维与维护建议](#运维与维护建议)
@@ -76,6 +77,187 @@
 | 样式 | Tailwind CSS 3 + 古风色彩主题 |
 | 图标 | Lucide React |
 | 部署 | PM2 + Nginx（推荐） |
+
+---
+
+## Docker 快速部署
+
+> 推荐生产部署方式。只需安装 Docker + Docker Compose，无需本地 Node.js / PostgreSQL。
+
+### 前置要求
+
+| 工具 | 最低版本 |
+|---|---|
+| Docker Engine | 24.x |
+| Docker Compose (v2 CLI plugin) | 2.24.x |
+
+验证安装：
+
+```bash
+docker --version          # Docker version 24.x.x
+docker compose version    # Docker Compose version v2.x.x
+```
+
+---
+
+### 一、拉取代码
+
+```bash
+git clone https://github.com/Andrewrover-01/InkFlow-Forum.git
+cd InkFlow-Forum
+```
+
+---
+
+### 二、配置环境变量
+
+```bash
+cp .env.example .env
+```
+
+用编辑器打开 `.env`，**至少填写以下必填项**：
+
+```env
+# ── 数据库 ─────────────────────────────────────────────────
+POSTGRES_DB=inkflow
+POSTGRES_USER=inkflow_user
+POSTGRES_PASSWORD=<强密码，至少16位>          # ← 必填
+
+# ── JWT 密钥 ────────────────────────────────────────────────
+# 生成命令：openssl rand -base64 32
+NEXTAUTH_SECRET=<用 openssl rand -base64 32 生成>  # ← 必填
+
+# ── 应用访问地址 ─────────────────────────────────────────────
+# 本地：http://localhost
+# 服务器：http://你的公网IP  或  https://你的域名
+NEXTAUTH_URL=http://localhost                      # ← 按实际修改
+```
+
+> ⚠️ `.env` 已被 `.gitignore` 排除，**永远不要提交到仓库**。
+
+---
+
+### 三、启动所有服务
+
+```bash
+docker compose up -d --build
+```
+
+首次运行会：
+1. 拉取 `postgres:16-alpine` 和 `nginx:1.25-alpine` 镜像
+2. 多阶段构建 Next.js 应用镜像（约 2–5 分钟）
+3. 启动 PostgreSQL，等待健康检查通过
+4. 应用容器自动执行 `prisma migrate deploy`（建表）
+5. 启动 Next.js 服务器 + Nginx 反向代理
+
+---
+
+### 四、查看日志
+
+```bash
+# 实时追踪所有服务
+docker compose logs -f
+
+# 只看应用日志
+docker compose logs -f app
+
+# 只看数据库日志
+docker compose logs -f postgres
+```
+
+---
+
+### 五、访问论坛
+
+| 地址 | 说明 |
+|---|---|
+| `http://localhost` | 本地访问（经 Nginx） |
+| `http://<服务器公网IP>` | 服务器访问 |
+
+> **种子数据**：首次部署后可手动导入初始数据：
+> ```bash
+> docker compose exec app node node_modules/.bin/ts-node -e "require('./prisma/seed')"
+> ```
+
+---
+
+### 六、常用管理命令
+
+```bash
+# 查看容器状态
+docker compose ps
+
+# 停止所有服务（保留数据）
+docker compose stop
+
+# 停止并删除容器（保留数据卷）
+docker compose down
+
+# 停止并删除容器 + 数据卷（⚠️ 清空数据库！）
+docker compose down -v
+
+# 进入应用容器 shell
+docker compose exec app sh
+
+# 进入数据库 shell
+docker compose exec postgres psql -U inkflow_user -d inkflow
+```
+
+---
+
+### 七、更新部署
+
+每次代码更新后：
+
+```bash
+git pull origin main
+docker compose up -d --build
+```
+
+`--build` 会重新构建镜像并重启服务；数据库数据通过 `postgres_data` 卷持久化，不会丢失。
+
+---
+
+### 八、配置 HTTPS（可选）
+
+1. 确保域名 DNS 已解析到服务器
+2. 在服务器上安装 Certbot：
+
+   ```bash
+   sudo apt install -y certbot
+   sudo certbot certonly --standalone -d your-domain.com
+   ```
+
+3. 取消注释 `nginx/nginx.conf` 中 443/SSL 相关块，并挂载证书卷（`docker-compose.yml` 中有预留注释）。
+
+4. 重启 Nginx：
+
+   ```bash
+   docker compose restart nginx
+   ```
+
+---
+
+### 九、服务架构
+
+```
+用户浏览器
+    │
+    ▼  :80 (HTTP)
+┌─────────┐
+│  Nginx  │  反向代理 / 静态缓存
+└────┬────┘
+     │  :3000 (内部网络)
+┌────▼────┐
+│  app    │  Next.js 15 standalone
+│ (node)  │  + Prisma migrate deploy
+└────┬────┘
+     │  :5432 (内部网络)
+┌────▼────┐
+│postgres │  PostgreSQL 16
+│ (data)  │  持久化到 postgres_data 卷
+└─────────┘
+```
 
 ---
 

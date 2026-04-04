@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Send } from "lucide-react";
+import { CaptchaWidget } from "@/components/captcha-widget";
 
 interface ReplyFormProps {
   postId: string;
@@ -13,10 +14,17 @@ export function ReplyForm({ postId }: ReplyFormProps) {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!content.trim()) return;
+
+    if (!captchaToken) {
+      setError("请先完成人机验证");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -24,14 +32,16 @@ export function ReplyForm({ postId }: ReplyFormProps) {
       const res = await fetch("/api/replies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postId, content }),
+        body: JSON.stringify({ postId, content, captchaToken }),
       });
 
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "回复失败");
+        setCaptchaToken(null); // reset on failure
       } else {
         setContent("");
+        setCaptchaToken(null); // reset for next reply
         router.refresh();
       }
     } catch {
@@ -54,6 +64,11 @@ export function ReplyForm({ postId }: ReplyFormProps) {
           maxLength={2000}
           required
         />
+        <CaptchaWidget
+          action="reply"
+          onVerify={setCaptchaToken}
+          onError={(msg) => setError(`验证加载失败: ${msg}`)}
+        />
         {error && (
           <p className="text-xs text-cinnabar-600 font-sans">{error}</p>
         )}
@@ -63,7 +78,7 @@ export function ReplyForm({ postId }: ReplyFormProps) {
           </span>
           <button
             type="submit"
-            disabled={loading || !content.trim()}
+            disabled={loading || !content.trim() || !captchaToken}
             className="btn-primary flex items-center gap-1.5 disabled:opacity-50"
           >
             <Send className="w-3.5 h-3.5" />

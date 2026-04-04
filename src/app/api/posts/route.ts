@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import {
+  SecurityPipeline,
+  requireAuthPlugin,
+  abuseGatePlugin,
+  sanitizePlugin,
+  captchaPlugin,
+} from "@/lib/api-security";
+import { moderateContent } from "@/lib/content-moderator";
+import { ContentType } from "@prisma/client";
 
 const createPostSchema = z.object({
   title: z.string().min(4, "标题至少4个字符").max(100, "标题最多100个字符"),
@@ -11,6 +18,12 @@ const createPostSchema = z.object({
   categoryId: z.string().min(1, "请选择版块"),
   tags: z.array(z.string()).optional(),
 });
+
+const pipeline = new SecurityPipeline()
+  .use(requireAuthPlugin())
+  .use(abuseGatePlugin("post"))
+  .use(sanitizePlugin())
+  .use(captchaPlugin("post"));
 
 // GET /api/posts?page=1&limit=20 — paginated post list (admin-friendly)
 export async function GET(req: NextRequest) {
@@ -41,14 +54,13 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "请先登录" }, { status: 401 });
-  }
+  const { blocked, response, ctx } = await pipeline.run(req);
+  if (blocked) return response!;
+
+  const session = ctx.session!;
 
   try {
-    const body = await req.json();
-    const { title, content, summary, categoryId, tags } = createPostSchema.parse(body);
+    const { title, content, summary, categoryId, tags } = createPostSchema.parse(ctx.body);
 
     const post = await prisma.post.create({
       data: {
@@ -71,6 +83,11 @@ export async function POST(req: NextRequest) {
         } : undefined,
       },
     });
+
+    // Run machine moderation in the background (must not block the response)
+    moderateContent(ContentType.POST, post.id, `${title} ${content}`).catch(
+      () => {}
+    );
 
     return NextResponse.json(post, { status: 201 });
   } catch (error) {

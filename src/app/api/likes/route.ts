@@ -3,6 +3,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import {
+  SecurityPipeline,
+  requireAuthPlugin,
+  abuseGatePlugin,
+  sanitizePlugin,
+} from "@/lib/api-security";
 
 const likeSchema = z
   .object({
@@ -16,17 +22,20 @@ const likeSchema = z
     { message: "必须指定点赞目标" }
   );
 
+const pipeline = new SecurityPipeline()
+  .use(requireAuthPlugin())
+  .use(abuseGatePlugin("like"))
+  .use(sanitizePlugin());
+
 // Toggle like
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "请先登录" }, { status: 401 });
-  }
+  const { blocked, response, ctx } = await pipeline.run(req);
+  if (blocked) return response!;
+
+  const userId = ctx.userId!;
 
   try {
-    const body = await req.json();
-    const { postId, replyId, commentId } = likeSchema.parse(body);
-    const userId = session.user.id;
+    const { postId, replyId, commentId } = likeSchema.parse(ctx.body);
 
     const existing = await prisma.like.findFirst({
       where: {

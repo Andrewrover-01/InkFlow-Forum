@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
   images: {
     remotePatterns: [
       // Cloudflare R2 public buckets (*.r2.dev) and custom CDN domains

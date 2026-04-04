@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { PenLine } from "lucide-react";
+import { CaptchaWidget } from "@/components/captcha-widget";
 
 interface Category {
   id: string;
@@ -17,6 +18,7 @@ export default function CreatePostPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -34,6 +36,12 @@ export default function CreatePostPage() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
+
+    if (!captchaToken) {
+      setError("请先完成人机验证");
+      return;
+    }
+
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
@@ -51,12 +59,14 @@ export default function CreatePostPage() {
             .split(",")
             .map((t) => t.trim())
             .filter(Boolean),
+          captchaToken,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "发帖失败");
+        setCaptchaToken(null); // reset on failure
       } else {
         router.push(`/post/${data.id}`);
       }
@@ -152,6 +162,12 @@ export default function CreatePostPage() {
             />
           </div>
 
+          <CaptchaWidget
+            action="post"
+            onVerify={setCaptchaToken}
+            onError={(msg) => setError(`验证加载失败: ${msg}`)}
+          />
+
           {error && (
             <p className="text-sm text-cinnabar-600 font-sans bg-cinnabar-50 border border-cinnabar-200 rounded-sm px-3 py-2">
               {error}
@@ -168,7 +184,7 @@ export default function CreatePostPage() {
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !captchaToken}
               className="btn-primary flex items-center gap-1.5 disabled:opacity-50"
             >
               <PenLine className="w-3.5 h-3.5" />

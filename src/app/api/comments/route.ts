@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import {
+  SecurityPipeline,
+  requireAuthPlugin,
+  abuseGatePlugin,
+  sanitizePlugin,
+  captchaPlugin,
+} from "@/lib/api-security";
+import { moderateContent } from "@/lib/content-moderator";
+import { ContentType } from "@prisma/client";
 
 const commentSchema = z.object({
   replyId: z.string().min(1),
@@ -10,15 +17,20 @@ const commentSchema = z.object({
   parentId: z.string().optional(),
 });
 
+const pipeline = new SecurityPipeline()
+  .use(requireAuthPlugin())
+  .use(abuseGatePlugin("comment"))
+  .use(sanitizePlugin())
+  .use(captchaPlugin("comment"));
+
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "请先登录" }, { status: 401 });
-  }
+  const { blocked, response, ctx } = await pipeline.run(req);
+  if (blocked) return response!;
+
+  const session = ctx.session!;
 
   try {
-    const body = await req.json();
-    const { replyId, content, parentId } = commentSchema.parse(body);
+    const { replyId, content, parentId } = commentSchema.parse(ctx.body);
 
     const comment = await prisma.comment.create({
       data: {
@@ -28,6 +40,9 @@ export async function POST(req: NextRequest) {
         authorId: session.user.id,
       },
     });
+
+    // Machine moderation — fire and forget
+    moderateContent(ContentType.COMMENT, comment.id, content).catch(() => {});
 
     return NextResponse.json(comment, { status: 201 });
   } catch (error) {

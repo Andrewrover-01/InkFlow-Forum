@@ -1,23 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import {
+  SecurityPipeline,
+  requireAuthPlugin,
+  abuseGatePlugin,
+  sanitizePlugin,
+  captchaPlugin,
+} from "@/lib/api-security";
+import { moderateContent } from "@/lib/content-moderator";
+import { ContentType } from "@prisma/client";
 
 const replySchema = z.object({
   postId: z.string().min(1),
   content: z.string().min(1).max(2000),
 });
 
+const pipeline = new SecurityPipeline()
+  .use(requireAuthPlugin())
+  .use(abuseGatePlugin("reply"))
+  .use(sanitizePlugin())
+  .use(captchaPlugin("reply"));
+
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "请先登录" }, { status: 401 });
-  }
+  const { blocked, response, ctx } = await pipeline.run(req);
+  if (blocked) return response!;
+
+  const session = ctx.session!;
 
   try {
-    const body = await req.json();
-    const { postId, content } = replySchema.parse(body);
+    const { postId, content } = replySchema.parse(ctx.body);
 
     const post = await prisma.post.findUnique({
       where: { id: postId, status: { not: "DELETED" } },
@@ -64,6 +76,9 @@ export async function POST(req: NextRequest) {
           // Notification failure should not block the reply response
         });
     }
+
+    // Machine moderation — fire and forget
+    moderateContent(ContentType.REPLY, reply.id, content).catch(() => {});
 
     return NextResponse.json(reply, { status: 201 });
   } catch (error) {
