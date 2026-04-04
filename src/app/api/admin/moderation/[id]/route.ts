@@ -3,7 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { ModerationStatus, ContentType } from "@prisma/client";
+import { ModerationStatus } from "@prisma/client";
+import { updateContentModerationStatus } from "@/lib/content-moderator";
 
 const patchSchema = z.object({
   status: z.enum(["APPROVED", "REJECTED"]),
@@ -45,27 +46,11 @@ export async function PATCH(
     });
 
     // Propagate the decision to the content row
-    try {
-      const newStatus = status as ModerationStatus;
-      if (record.contentType === ContentType.POST) {
-        await prisma.post.update({
-          where: { id: record.contentId },
-          data: { moderationStatus: newStatus },
-        });
-      } else if (record.contentType === ContentType.REPLY) {
-        await prisma.reply.update({
-          where: { id: record.contentId },
-          data: { moderationStatus: newStatus },
-        });
-      } else if (record.contentType === ContentType.COMMENT) {
-        await prisma.comment.update({
-          where: { id: record.contentId },
-          data: { moderationStatus: newStatus },
-        });
-      }
-    } catch {
-      // Non-fatal — the moderation record itself is updated
-    }
+    await updateContentModerationStatus(
+      record.contentType,
+      record.contentId,
+      status as ModerationStatus
+    );
 
     return NextResponse.json(updated);
   } catch (error) {

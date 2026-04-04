@@ -172,26 +172,30 @@ export async function moderateContent(
   });
 
   // Update the content row's moderationStatus to reflect machine decision
-  try {
-    if (contentType === ContentType.POST) {
-      await prisma.post.update({
-        where: { id: contentId },
-        data: { moderationStatus: status },
-      });
-    } else if (contentType === ContentType.REPLY) {
-      await prisma.reply.update({
-        where: { id: contentId },
-        data: { moderationStatus: status },
-      });
-    } else if (contentType === ContentType.COMMENT) {
-      await prisma.comment.update({
-        where: { id: contentId },
-        data: { moderationStatus: status },
-      });
-    }
-  } catch {
-    // Status update failure must not block the response
-  }
+  await updateContentModerationStatus(contentType, contentId, status);
 
   return { recordId: record.id, status, score, flags };
+}
+
+/**
+ * Update the `moderationStatus` field on the underlying content row.
+ * Shared by `moderateContent` and the admin PATCH handler.
+ */
+export async function updateContentModerationStatus(
+  contentType: ContentType,
+  contentId: string,
+  status: ModerationStatus
+): Promise<void> {
+  try {
+    const data = { moderationStatus: status };
+    if (contentType === ContentType.POST) {
+      await prisma.post.update({ where: { id: contentId }, data });
+    } else if (contentType === ContentType.REPLY) {
+      await prisma.reply.update({ where: { id: contentId }, data });
+    } else if (contentType === ContentType.COMMENT) {
+      await prisma.comment.update({ where: { id: contentId }, data });
+    }
+  } catch {
+    // Non-fatal — status sync failure must not block callers
+  }
 }
