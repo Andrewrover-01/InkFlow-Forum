@@ -28,6 +28,9 @@ jobs:
       R2_SECRET_ACCESS_KEY: ""
       R2_BUCKET: ""
       R2_PUBLIC_URL: ""
+      # CAPTCHA bypass — allows E2E tests to skip human-verification UI
+      CAPTCHA_BYPASS_TOKEN: "ci-captcha-bypass"
+      NEXT_PUBLIC_CAPTCHA_BYPASS_TOKEN: "ci-captcha-bypass"
       # Playwright
       PLAYWRIGHT_BASE_URL: "http://localhost:3000"
 

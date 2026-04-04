@@ -3,11 +3,13 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { checkAbuse } from "@/lib/abuse-gate";
+import { verifyCaptchaToken } from "@/lib/captcha";
 
 const registerSchema = z.object({
   name: z.string().min(2, "笔名至少2个字符").max(20, "笔名最多20个字符"),
   email: z.string().email("请输入有效的邮箱地址"),
   password: z.string().min(6, "密码至少6个字符"),
+  captchaToken: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -17,7 +19,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, email, password } = registerSchema.parse(body);
+    const { name, email, password, captchaToken } = registerSchema.parse(body);
+
+    // Verify CAPTCHA
+    const captcha = verifyCaptchaToken(captchaToken, "register");
+    if (!captcha.valid) {
+      return NextResponse.json({ error: "人机验证失败，请重试" }, { status: 400 });
+    }
 
     const existingUser = await prisma.user.findUnique({
       where: { email },

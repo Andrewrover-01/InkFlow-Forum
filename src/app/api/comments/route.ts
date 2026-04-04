@@ -4,11 +4,13 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { checkAbuse } from "@/lib/abuse-gate";
+import { verifyCaptchaToken } from "@/lib/captcha";
 
 const commentSchema = z.object({
   replyId: z.string().min(1),
   content: z.string().min(1).max(500),
   parentId: z.string().optional(),
+  captchaToken: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -22,7 +24,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { replyId, content, parentId } = commentSchema.parse(body);
+    const { replyId, content, parentId, captchaToken } = commentSchema.parse(body);
+
+    // Verify CAPTCHA
+    const captcha = verifyCaptchaToken(captchaToken, "comment");
+    if (!captcha.valid) {
+      return NextResponse.json({ error: "人机验证失败，请重试" }, { status: 400 });
+    }
 
     const comment = await prisma.comment.create({
       data: {
