@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(entry, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
+      return NextResponse.json({ error: error.issues[0]?.message ?? "输入无效" }, { status: 400 });
     }
     console.error("Blacklist create error:", error);
     return NextResponse.json({ error: "操作失败" }, { status: 500 });

@@ -43,7 +43,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
     return NextResponse.json(updated);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
+      return NextResponse.json({ error: error.issues[0]?.message ?? "输入无效" }, { status: 400 });
     }
     return NextResponse.json({ error: "更新失败" }, { status: 500 });
   }

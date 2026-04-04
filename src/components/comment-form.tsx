@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { CaptchaWidget } from "@/components/captcha-widget";
 
@@ -17,6 +17,11 @@ export function CommentForm({ replyId, parentId, onSuccess }: CommentFormProps) 
   const [captchaToken, setCaptchaToken] = useState("");
   const [captchaAnswer, setCaptchaAnswer] = useState<number | undefined>();
   const [captchaKey, setCaptchaKey] = useState(0);
+
+  const handleCaptchaToken = useCallback((token: string, answer?: number) => {
+    setCaptchaToken(token);
+    setCaptchaAnswer(answer);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -49,7 +54,7 @@ export function CommentForm({ replyId, parentId, onSuccess }: CommentFormProps) 
       <CaptchaWidget
         key={captchaKey}
         action="comment"
-        onToken={(token, answer) => { setCaptchaToken(token); setCaptchaAnswer(answer); }}
+        onToken={handleCaptchaToken}
       />
       <form onSubmit={handleSubmit} className="flex gap-2">
         <input

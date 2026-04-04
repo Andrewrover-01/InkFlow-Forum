@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { PenLine } from "lucide-react";
@@ -20,6 +20,11 @@ export default function CreatePostPage() {
   const [error, setError] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
   const [captchaAnswer, setCaptchaAnswer] = useState<number | undefined>();
+
+  const handleCaptchaToken = useCallback((token: string, answer?: number) => {
+    setCaptchaToken(token);
+    setCaptchaAnswer(answer);
+  }, []);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -164,7 +169,7 @@ export default function CreatePostPage() {
           {/* CAPTCHA (auto mode: invisible for normal users, slider for graylisted) */}
           <CaptchaWidget
             action="post"
-            onToken={(token, answer) => { setCaptchaToken(token); setCaptchaAnswer(answer); }}
+            onToken={handleCaptchaToken}
           />
 
           {error && (

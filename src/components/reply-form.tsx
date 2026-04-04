@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Send } from "lucide-react";
 import { CaptchaWidget } from "@/components/captcha-widget";
@@ -19,6 +19,11 @@ export function ReplyForm({ postId }: ReplyFormProps) {
   // Incrementing this key forces the CaptchaWidget to refetch a new challenge
   // after a successful submission so the next reply can be verified.
   const [captchaKey, setCaptchaKey] = useState(0);
+
+  const handleCaptchaToken = useCallback((token: string, answer?: number) => {
+    setCaptchaToken(token);
+    setCaptchaAnswer(answer);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -75,7 +80,7 @@ export function ReplyForm({ postId }: ReplyFormProps) {
         <CaptchaWidget
           key={captchaKey}
           action="reply"
-          onToken={(token, answer) => { setCaptchaToken(token); setCaptchaAnswer(answer); }}
+          onToken={handleCaptchaToken}
         />
         <div className="flex items-center justify-between">
           <span className="text-xs font-sans text-ink-400">
