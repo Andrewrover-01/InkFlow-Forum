@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { checkAbuse } from "@/lib/abuse-gate";
 
 const registerSchema = z.object({
   name: z.string().min(2, "笔名至少2个字符").max(20, "笔名最多20个字符"),
@@ -10,6 +11,10 @@ const registerSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  // Rate-limit registrations by IP (no userId yet) to block bulk account creation
+  const gate = await checkAbuse({ action: "register", req });
+  if (gate.blocked) return gate.response!;
+
   try {
     const body = await req.json();
     const { name, email, password } = registerSchema.parse(body);

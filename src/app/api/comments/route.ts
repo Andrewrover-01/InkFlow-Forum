@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { checkAbuse } from "@/lib/abuse-gate";
 
 const commentSchema = z.object({
   replyId: z.string().min(1),
@@ -15,6 +16,9 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "请先登录" }, { status: 401 });
   }
+
+  const gate = await checkAbuse({ action: "comment", userId: session.user.id, req });
+  if (gate.blocked) return gate.response!;
 
   try {
     const body = await req.json();

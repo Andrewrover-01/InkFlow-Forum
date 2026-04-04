@@ -250,6 +250,36 @@ model HotNovel {
   @@map("hot_novels")
 }
 
+// ================================
+// Anti-Abuse Models
+// ================================
+
+enum BlacklistType {
+  IP
+  USER_ID
+  FINGERPRINT
+}
+
+enum BlacklistLevel {
+  BLACK
+  GRAY
+}
+
+model BlacklistEntry {
+  id        String         @id @default(cuid())
+  key       String         // IP address, userId, or device fingerprint
+  type      BlacklistType
+  level     BlacklistLevel @default(BLACK)
+  reason    String?
+  expiresAt DateTime?      // null = permanent
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@unique([key, type])
+  @@index([key, type])
+  @@map("blacklist_entries")
+}
+
 // In-app notifications
 model Notification {
   id         String           @id @default(cuid())
