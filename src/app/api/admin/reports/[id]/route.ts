@@ -72,9 +72,19 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
         replyIdVal?: string,
         commentIdVal?: string,
       ) => {
+        // Build target filter based on type to avoid false matches across types
+        let targetFilter: { postId?: string; replyId?: string; commentId?: string };
+        if (type === "POST") {
+          targetFilter = { postId: targetId };
+        } else if (type === "REPLY") {
+          targetFilter = { replyId: targetId };
+        } else {
+          targetFilter = { commentId: targetId };
+        }
+
         // Only create a record if none exists for this target
         const existing = await prisma.moderationRecord.findFirst({
-          where: { targetType: type, ...(type === "POST" ? { postId: targetId } : type === "REPLY" ? { replyId: targetId } : { commentId: targetId }) },
+          where: { targetType: type, ...targetFilter },
         });
         if (!existing) {
           await prisma.moderationRecord.create({

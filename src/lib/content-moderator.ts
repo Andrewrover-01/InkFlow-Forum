@@ -32,6 +32,7 @@ import { ModerationStatus } from "@prisma/client";
 interface BlocklistCategory {
   severity: "SEVERE" | "MODERATE" | "MILD";
   score: number;
+  /** Human-readable label surfaced to admins/users when content is flagged or rejected. */
   label: string;
   patterns: RegExp[];
 }

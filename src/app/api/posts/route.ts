@@ -152,6 +152,7 @@ export async function POST(req: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
+    // ZodError is caught earlier (line ~68); only database/runtime errors reach here.
     console.error("Create post error:", error);
     return NextResponse.json({ error: "发帖失败，请稍后重试" }, { status: 500 });
   }
