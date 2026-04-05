@@ -29,8 +29,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Install OpenSSL 3 (required by Prisma query engine on Alpine 3.17+)
-RUN apk add --no-cache openssl
+# Install libc6-compat (required by some native Node.js modules on Alpine) and
+# OpenSSL 3 (required by Prisma query engine on Alpine 3.17+)
+RUN apk add --no-cache libc6-compat openssl
 
 # Create non-root user for security
 RUN addgroup --system --gid 1001 nodejs \
