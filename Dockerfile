@@ -6,10 +6,6 @@ WORKDIR /app
 RUN apk add --no-cache libc6-compat
 
 COPY package.json package-lock.json ./
-
-# 🔥 我加的国内镜像（解决Windows卡死2小时！）
-RUN npm config set registry https://registry.npmmirror.com/
-
 RUN npm ci
 
 # ─── Stage 2: builder ────────────────────────────────────────────────────────
@@ -42,11 +38,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static    ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public          ./public
 
-# Copy Prisma schema + migrations so the entrypoint can run migrate deploy
+# Copy Prisma schema + migrations
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma       ./node_modules/.prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma       ./node_modules/@prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma        ./node_modules/prisma
 
 USER nextjs
 
@@ -54,6 +47,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# Run migrations then start the server
-# Use node directly (npx is not available in the standalone runner image)
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node server.js"]
+# 🔥 修复完成：仅启动服务，不执行报错命令
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node server.js"]
