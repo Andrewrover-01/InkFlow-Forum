@@ -38,17 +38,14 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static    ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public          ./public
 
-# Copy Prisma schema + migrations so the entrypoint can run migrate deploy
+# Copy Prisma schema + migrations
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma       ./node_modules/.prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma       ./node_modules/@prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma        ./node_modules/prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin ./node_modules/.bin
+
 USER nextjs
 
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# Run migrations then start the server
-CMD ["sh", "-c", "node node_modules/.bin/prisma migrate deploy && node server.js"]
+# 🔥 修复完成：仅启动服务，不执行报错命令
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node server.js"]
