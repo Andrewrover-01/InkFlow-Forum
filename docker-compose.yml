@@ -48,8 +48,8 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ > /dev/null 2>&1 || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 40s
+      retries: 12
+      start_period: 60s
     networks:
       - inkflow_net
 
