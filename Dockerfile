@@ -6,6 +6,10 @@ WORKDIR /app
 RUN apk add --no-cache libc6-compat
 
 COPY package.json package-lock.json ./
+
+# 🔥 我加的国内镜像（解决Windows卡死2小时！）
+RUN npm config set registry https://registry.npmmirror.com/
+
 RUN npm ci
 
 # ─── Stage 2: builder ────────────────────────────────────────────────────────
