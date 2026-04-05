@@ -6,10 +6,6 @@ WORKDIR /app
 RUN apk add --no-cache libc6-compat
 
 COPY package.json package-lock.json ./
-
-# 🔥 我加的国内镜像（解决Windows卡死2小时！）
-RUN npm config set registry https://registry.npmmirror.com/
-
 RUN npm ci
 
 # ─── Stage 2: builder ────────────────────────────────────────────────────────
@@ -47,7 +43,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma       ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma       ./node_modules/@prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma        ./node_modules/prisma
-
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin ./node_modules/.bin
 USER nextjs
 
 EXPOSE 3000
@@ -55,4 +51,4 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
 # Run migrations then start the server
-CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
+CMD ["sh", "-c", "node node_modules/.bin/prisma migrate deploy && node server.js"]
