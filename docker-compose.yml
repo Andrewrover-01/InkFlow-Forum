@@ -44,6 +44,12 @@ services:
       R2_PUBLIC_URL:        ${R2_PUBLIC_URL:-}
     expose:
       - "3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ > /dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
     networks:
       - inkflow_net
 
@@ -53,7 +59,8 @@ services:
     container_name: inkflow_nginx
     restart: unless-stopped
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     ports:
       - "80:80"
       - "443:443"     # reserved for HTTPS / Certbot volume mount
