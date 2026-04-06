@@ -58,6 +58,19 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  .layout-main-balanced {
+    --sidebar-width: 13rem;
+    display: grid;
+    align-items: start;
+    gap: 1.5rem;
+  }
+
+  @media (min-width: 1024px) {
+    .layout-main-balanced {
+      grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--sidebar-width);
+    }
+  }
 }
 
 /* Scrollbar styling */
