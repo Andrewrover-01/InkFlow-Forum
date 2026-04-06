@@ -29,7 +29,7 @@ export default function RootLayout({
             <div className="flex-1 container mx-auto px-4 py-6 max-w-6xl">
               <div className="layout-main-balanced">
                 {/* Left spacer for symmetric centered layout on large screens */}
-                <div className="hidden lg:block" />
+                <div className="hidden lg:block" aria-hidden="true" />
                 {/* Main content */}
                 <main className="min-w-0">
                   {children}
