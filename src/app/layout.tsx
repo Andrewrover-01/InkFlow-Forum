@@ -27,15 +27,17 @@ export default function RootLayout({
           <div className="min-h-screen flex flex-col">
             <Navbar />
             <div className="flex-1 container mx-auto px-4 py-6 max-w-6xl">
-              <div className="flex gap-6 items-start">
-                {/* Hot Novels Sidebar – visible on large screens */}
-                <div className="hidden lg:block w-52 flex-shrink-0">
-                  <HotNovelsSidebar />
-                </div>
+              <div className="grid items-start gap-6 lg:grid-cols-[13rem_minmax(0,1fr)_13rem]">
+                {/* Left spacer for symmetric centered layout on large screens */}
+                <div className="hidden lg:block" />
                 {/* Main content */}
-                <main className="flex-1 min-w-0">
+                <main className="min-w-0">
                   {children}
                 </main>
+                {/* Hot Novels Sidebar – moved to right side on large screens */}
+                <div className="hidden lg:block w-52">
+                  <HotNovelsSidebar />
+                </div>
               </div>
             </div>
             <footer className="border-t border-parchment-300 py-6 mt-8">
