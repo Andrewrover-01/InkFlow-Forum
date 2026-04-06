@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
+from threading import Lock
 
 from fastapi import FastAPI, HTTPException, Query
 
@@ -19,6 +20,7 @@ class CacheEntry:
 
 app = FastAPI(title="InkFlow Hot Novels API", version="1.0.0")
 _cache: CacheEntry | None = None
+_cache_lock = Lock()
 
 
 @app.get("/top10")
@@ -26,22 +28,27 @@ def get_top10(force_refresh: bool = Query(default=False, description="是否忽�
     global _cache
 
     now = time.time()
-    if not force_refresh and _cache and _cache.expires_at > now:
+    with _cache_lock:
+        cache_snapshot = _cache
+
+    if not force_refresh and cache_snapshot and cache_snapshot.expires_at > now:
         return {
             "source": "cache",
             "cached": True,
-            "count": len(_cache.data),
-            "fetchedAt": _cache.fetched_at,
-            "data": _cache.data,
+            "count": len(cache_snapshot.data),
+            "fetchedAt": cache_snapshot.fetched_at,
+            "data": cache_snapshot.data,
         }
 
     try:
         data = top10_as_dict()
-        _cache = CacheEntry(
+        new_cache = CacheEntry(
             data=data,
             fetched_at=now,
             expires_at=now + CACHE_TTL_SECONDS,
         )
+        with _cache_lock:
+            _cache = new_cache
         return {
             "source": "live",
             "cached": False,
@@ -50,30 +57,34 @@ def get_top10(force_refresh: bool = Query(default=False, description="是否忽�
             "data": data,
         }
     except ParseError as exc:
-        if _cache:
+        with _cache_lock:
+            cache_snapshot = _cache
+        if cache_snapshot:
             return {
                 "source": "stale-cache",
                 "cached": True,
                 "stale": True,
                 "warning": "排行榜页面结构可能已变化，已返回最近一次缓存结果。",
-                "count": len(_cache.data),
-                "fetchedAt": _cache.fetched_at,
-                "data": _cache.data,
+                "count": len(cache_snapshot.data),
+                "fetchedAt": cache_snapshot.fetched_at,
+                "data": cache_snapshot.data,
             }
         raise HTTPException(
             status_code=502,
             detail="排行榜页面解析失败，请稍后重试或联系维护人员。",
         ) from exc
     except FetchError as exc:
-        if _cache:
+        with _cache_lock:
+            cache_snapshot = _cache
+        if cache_snapshot:
             return {
                 "source": "stale-cache",
                 "cached": True,
                 "stale": True,
                 "warning": "目标网站暂时不可用，已返回最近一次缓存结果。",
-                "count": len(_cache.data),
-                "fetchedAt": _cache.fetched_at,
-                "data": _cache.data,
+                "count": len(cache_snapshot.data),
+                "fetchedAt": cache_snapshot.fetched_at,
+                "data": cache_snapshot.data,
             }
         raise HTTPException(
             status_code=503,

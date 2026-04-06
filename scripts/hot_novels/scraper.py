@@ -15,6 +15,7 @@ REQUEST_TIMEOUT = 12.0
 MIN_REQUEST_INTERVAL_SECONDS = 1.5
 RETRY_TIMES = 2
 RETRY_DELAY_SECONDS = 1.2
+MAX_ATTEMPTS = RETRY_TIMES + 1
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -179,7 +180,7 @@ def parse_top10(html: str) -> list[TopNovel]:
 def fetch_top10(url: str = RANKING_URL) -> list[TopNovel]:
     last_error: Exception | None = None
 
-    for attempt in range(1, RETRY_TIMES + 2):
+    for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
             _THROTTLER.wait()
             headers = {
@@ -192,7 +193,7 @@ def fetch_top10(url: str = RANKING_URL) -> list[TopNovel]:
                 return parse_top10(response.text)
         except (httpx.HTTPError, ParseError) as exc:
             last_error = exc
-            if attempt <= RETRY_TIMES + 1:
+            if attempt < MAX_ATTEMPTS:
                 time.sleep(RETRY_DELAY_SECONDS)
 
     if isinstance(last_error, ParseError):
