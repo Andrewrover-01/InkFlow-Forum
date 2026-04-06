@@ -176,7 +176,7 @@ docker compose logs -f postgres
 
 > **种子数据**：首次部署后可手动导入初始数据：
 > ```bash
-> docker compose exec app node node_modules/.bin/ts-node -e "require('./prisma/seed')"
+> docker compose exec app npm run seed
 > ```
 
 ---
