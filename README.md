@@ -686,3 +686,53 @@ prisma/
 ## 许可证
 
 MIT © 2026 InkFlow Forum
+
+---
+
+## 热门小说榜单抓取（Python / FastAPI）
+
+> 该功能位于 `scripts/hot_novels/`，用于抓取起点中文网排行榜 Top10（排名、书名、作者）。
+
+### 1) 安装依赖
+
+```bash
+cd scripts/hot_novels
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 2) 本地验证爬虫（打印解析结果）
+
+```bash
+python run_scraper.py
+```
+
+会输出 JSON 列表，包含：
+- `rank`
+- `title`
+- `author`
+
+### 3) 启动 FastAPI 服务
+
+```bash
+uvicorn api:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### 4) 访问接口
+
+```bash
+GET http://127.0.0.1:8000/top10
+```
+
+接口特性：
+- 内存缓存（默认 10 分钟 TTL）
+- `force_refresh=true` 可强制刷新
+- 随机 User-Agent
+- 请求节流 + 重试
+- 站点不可用或解析异常时返回友好错误（有缓存则自动回退到旧缓存）
+
+示例：
+```bash
+curl 'http://127.0.0.1:8000/top10?force_refresh=false'
+```
