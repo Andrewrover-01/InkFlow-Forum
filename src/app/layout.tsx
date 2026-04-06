@@ -27,7 +27,7 @@ export default function RootLayout({
           <div className="min-h-screen flex flex-col">
             <Navbar />
             <div className="flex-1 container mx-auto px-4 py-6 max-w-6xl">
-              <div className="grid items-start gap-6 lg:[--sidebar-width:13rem] lg:grid-cols-[var(--sidebar-width)_minmax(0,1fr)_var(--sidebar-width)]">
+              <div className="layout-main-balanced">
                 {/* Left spacer for symmetric centered layout on large screens */}
                 <div className="hidden lg:block" />
                 {/* Main content */}
