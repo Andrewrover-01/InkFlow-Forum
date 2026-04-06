@@ -246,5 +246,7 @@ async function main() {
 }
 
 main()
-  .catch(console.error)
+  .catch((error) => {
+    console.error("Error during database seeding:", error);
+  })
   .finally(() => prisma.$disconnect());
